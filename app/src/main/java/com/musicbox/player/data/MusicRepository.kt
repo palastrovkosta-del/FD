@@ -30,17 +30,26 @@ class MusicRepository(private val context: Context) {
         files.mapNotNull { extractTrackMetadata(it) }.sortedBy { it.title.lowercase() }
     }
 
+    // Проверяем существующие треки, чтобы исключить дубликаты в ALL!
     suspend fun importFiles(uris: List<Uri>): List<String> = withContext(Dispatchers.IO) {
         val newTrackIds = mutableListOf<String>()
+        val existingFiles = musicDir.listFiles() ?: emptyArray()
+
         for (uri in uris) {
             val fileName = queryFileName(uri) ?: "track_${UUID.randomUUID()}.mp3"
             val extension = fileName.substringAfterLast(".", "").lowercase()
             if (extension in supportedExtensions) {
-                val destFile = getUniqueFile(musicDir, fileName)
-                context.contentResolver.openInputStream(uri)?.use { input ->
-                    FileOutputStream(destFile).use { output -> input.copyTo(output) }
+                // Если файл уже есть в папке — не создаем 123_1.mp3, а используем оригинал!
+                val existing = existingFiles.find { it.name.equals(fileName, ignoreCase = true) }
+                if (existing != null && existing.exists() && existing.length() > 0) {
+                    newTrackIds.add(existing.absolutePath)
+                } else {
+                    val destFile = File(musicDir, fileName)
+                    context.contentResolver.openInputStream(uri)?.use { input ->
+                        FileOutputStream(destFile).use { output -> input.copyTo(output) }
+                    }
+                    newTrackIds.add(destFile.absolutePath)
                 }
-                newTrackIds.add(destFile.absolutePath)
             }
         }
         newTrackIds
@@ -117,7 +126,7 @@ class MusicRepository(private val context: Context) {
     private fun downscaleArtwork(bytes: ByteArray): ByteArray {
         return try {
             val original = BitmapFactory.decodeByteArray(bytes, 0, bytes.size) ?: return bytes
-            val maxSize = 400
+            val maxSize = 500
             val width = original.width
             val height = original.height
             if (width <= maxSize && height <= maxSize) return bytes
@@ -140,18 +149,5 @@ class MusicRepository(private val context: Context) {
             if (nameIndex != -1 && cursor.moveToFirst()) name = cursor.getString(nameIndex)
         }
         return name
-    }
-
-    private fun getUniqueFile(directory: File, fileName: String): File {
-        var file = File(directory, fileName)
-        if (!file.exists()) return file
-        val nameWithoutExt = fileName.substringBeforeLast(".")
-        val ext = fileName.substringAfterLast(".", "")
-        var counter = 1
-        while (file.exists()) {
-            file = File(directory, "${nameWithoutExt}_$counter.$ext")
-            counter++
-        }
-        return file
     }
 }
