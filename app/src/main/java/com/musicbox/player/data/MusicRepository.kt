@@ -16,7 +16,8 @@ import java.io.FileOutputStream
 import java.util.UUID
 
 class MusicRepository(private val context: Context) {
-    private val supportedExtensions = setOf("mp3", "flac", "m4a", "wav", "ogg", "aac")
+    // Расширен список форматов, включая Telegram аудио (.opus)
+    private val supportedExtensions = setOf("mp3", "flac", "m4a", "wav", "ogg", "aac", "opus", "wma")
     val musicDir: File
         get() = File(context.filesDir, "music").apply { if (!exists()) mkdirs() }
 
@@ -25,31 +26,38 @@ class MusicRepository(private val context: Context) {
 
     suspend fun getTracks(): List<Track> = withContext(Dispatchers.IO) {
         val files = musicDir.listFiles { file ->
-            file.isFile && supportedExtensions.contains(file.extension.lowercase())
+            file.isFile && (supportedExtensions.contains(file.extension.lowercase()) || file.extension.isBlank())
         } ?: emptyArray()
         files.mapNotNull { extractTrackMetadata(it) }.sortedBy { it.title.lowercase() }
     }
 
-    // Проверяем существующие треки, чтобы исключить дубликаты в ALL!
     suspend fun importFiles(uris: List<Uri>): List<String> = withContext(Dispatchers.IO) {
         val newTrackIds = mutableListOf<String>()
         val existingFiles = musicDir.listFiles() ?: emptyArray()
 
         for (uri in uris) {
-            val fileName = queryFileName(uri) ?: "track_${UUID.randomUUID()}.mp3"
-            val extension = fileName.substringAfterLast(".", "").lowercase()
-            if (extension in supportedExtensions) {
-                // Если файл уже есть в папке — не создаем 123_1.mp3, а используем оригинал!
-                val existing = existingFiles.find { it.name.equals(fileName, ignoreCase = true) }
-                if (existing != null && existing.exists() && existing.length() > 0) {
-                    newTrackIds.add(existing.absolutePath)
-                } else {
-                    val destFile = File(musicDir, fileName)
-                    context.contentResolver.openInputStream(uri)?.use { input ->
-                        FileOutputStream(destFile).use { output -> input.copyTo(output) }
+            try {
+                var fileName = queryFileName(uri) ?: "track_${UUID.randomUUID()}.mp3"
+                val extension = fileName.substringAfterLast(".", "").lowercase()
+
+                if (extension.isBlank() || extension in supportedExtensions) {
+                    if (!fileName.contains(".")) fileName = "$fileName.mp3"
+
+                    val existing = existingFiles.find { it.name.equals(fileName, ignoreCase = true) }
+                    if (existing != null && existing.exists() && existing.length() > 0) {
+                        newTrackIds.add(existing.absolutePath)
+                    } else {
+                        val destFile = File(musicDir, fileName)
+                        context.contentResolver.openInputStream(uri)?.use { input ->
+                            FileOutputStream(destFile).use { output -> input.copyTo(output) }
+                        }
+                        if (destFile.exists() && destFile.length() > 0) {
+                            newTrackIds.add(destFile.absolutePath)
+                        }
                     }
-                    newTrackIds.add(destFile.absolutePath)
                 }
+            } catch (e: Exception) {
+                e.printStackTrace()
             }
         }
         newTrackIds
@@ -144,9 +152,13 @@ class MusicRepository(private val context: Context) {
 
     private fun queryFileName(uri: Uri): String? {
         var name: String? = null
-        context.contentResolver.query(uri, null, null, null, null)?.use { cursor ->
-            val nameIndex = cursor.getColumnIndex(OpenableColumns.DISPLAY_NAME)
-            if (nameIndex != -1 && cursor.moveToFirst()) name = cursor.getString(nameIndex)
+        try {
+            context.contentResolver.query(uri, null, null, null, null)?.use { cursor ->
+                val nameIndex = cursor.getColumnIndex(OpenableColumns.DISPLAY_NAME)
+                if (nameIndex != -1 && cursor.moveToFirst()) name = cursor.getString(nameIndex)
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
         }
         return name
     }
