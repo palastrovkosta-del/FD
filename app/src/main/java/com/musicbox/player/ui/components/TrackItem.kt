@@ -46,19 +46,15 @@ fun TrackItem(
     onClick: () -> Unit,
     onDeleteClick: () -> Unit
 ) {
-    val soulHeart = if (isCurrentPlaying) {
-        if (isPlaying) "❤️ " else "💜 " // Undertale Soul Determination / Sans Eye
-    } else ""
-
-    val borderColor = if (isCurrentPlaying) Color(0xFFFF1744) else Color(0x33A855F7)
-    val bgColor = if (isSelected) Color(0x4DFF1744) else Color(0xCC12081E)
+    val borderColor = if (isCurrentPlaying) MaterialTheme.colorScheme.primary else Color(0xFFFFD1DC)
+    val bgColor = if (isSelected) Color(0xFFFFE0EB) else Color.White
 
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 10.dp, vertical = 4.dp)
-            .clip(RoundedCornerShape(12.dp))
-            .border(1.5.dp, borderColor, RoundedCornerShape(12.dp))
+            .padding(horizontal = 12.dp, vertical = 4.dp)
+            .clip(RoundedCornerShape(16.dp))
+            .border(1.5.dp, borderColor, RoundedCornerShape(16.dp))
             .background(bgColor)
             .combinedClickable(
                 onClick = { if (isSelectionMode) onSelectToggle() else onClick() },
@@ -80,8 +76,8 @@ fun TrackItem(
             onClick = { if (isSelectionMode) onSelectToggle() else onClick() },
             modifier = Modifier.size(44.dp),
             colors = IconButtonDefaults.filledIconButtonColors(
-                containerColor = if (isCurrentPlaying) Color(0xFFFF1744) else Color(0xFF2B143F),
-                contentColor = Color.White
+                containerColor = if (isCurrentPlaying) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceVariant,
+                contentColor = if (isCurrentPlaying) Color.White else MaterialTheme.colorScheme.primary
             )
         ) {
             Icon(
@@ -95,17 +91,17 @@ fun TrackItem(
 
         Column(modifier = Modifier.weight(1f)) {
             Text(
-                "$soulHeart${track.title}",
+                track.title,
                 style = MaterialTheme.typography.titleMedium,
                 fontWeight = if (isCurrentPlaying) FontWeight.Bold else FontWeight.SemiBold,
-                color = if (isCurrentPlaying) Color(0xFFFF4081) else Color.White,
+                color = if (isCurrentPlaying) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis
             )
             Text(
                 "${track.artist} • ${formatDuration(track.durationMs)}",
                 style = MaterialTheme.typography.bodySmall,
-                color = Color(0xFFE2C4FF).copy(alpha = 0.8f),
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis
             )
@@ -113,14 +109,14 @@ fun TrackItem(
 
         Spacer(modifier = Modifier.width(8.dp))
 
-        TrackImage(bitmap = track.artworkBitmap, size = 44.dp, cornerRadius = 8.dp)
+        TrackImage(bitmap = track.artworkBitmap, size = 44.dp, cornerRadius = 10.dp)
 
         if (!isSelectionMode) {
             IconButton(onClick = onDeleteClick) {
                 Icon(
                     Icons.Default.Delete,
                     contentDescription = "Delete",
-                    tint = Color.White.copy(alpha = 0.5f)
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
                 )
             }
         }
