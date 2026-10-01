@@ -8,6 +8,7 @@ import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Box
@@ -18,6 +19,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -35,6 +37,7 @@ import androidx.compose.material.icons.filled.MusicNote
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -110,25 +113,25 @@ fun MainScreen(
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         IconButton(onClick = { viewModel.clearSelection() }) {
-                            Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Отмена", tint = Color.White)
+                            Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Отмена", tint = MaterialTheme.colorScheme.primary)
                         }
                         Text(
                             "Выбрано: ${uiState.selectedTrackIds.size}",
                             style = MaterialTheme.typography.titleMedium,
                             fontWeight = FontWeight.Bold,
-                            color = Color.White,
+                            color = MaterialTheme.colorScheme.onSurface,
                             modifier = Modifier
                                 .weight(1f)
                                 .padding(start = 8.dp)
                         )
                         IconButton(onClick = { viewModel.selectAll() }) {
-                            Icon(Icons.Default.DoneAll, contentDescription = "Выбрать все", tint = Color.White)
+                            Icon(Icons.Default.DoneAll, contentDescription = "Выбрать все", tint = MaterialTheme.colorScheme.primary)
                         }
                         IconButton(onClick = { viewModel.setAddToGroupDialogVisible(true) }) {
                             Icon(Icons.Default.Folder, contentDescription = "В группу", tint = MaterialTheme.colorScheme.primary)
                         }
                         IconButton(onClick = { viewModel.shareSelectedTracks(context) }) {
-                            Icon(Icons.Default.Share, contentDescription = "Поделиться", tint = Color.White)
+                            Icon(Icons.Default.Share, contentDescription = "Поделиться", tint = MaterialTheme.colorScheme.primary)
                         }
                         IconButton(onClick = { viewModel.requestBatchDeleteConfirmation() }) {
                             Icon(Icons.Default.Delete, contentDescription = "Удалить", tint = MaterialTheme.colorScheme.error)
@@ -142,8 +145,7 @@ fun MainScreen(
                         onClick = {
                             filePickerLauncher.launch(
                                 arrayOf(
-                                    "audio/mpeg", "audio/flac", "audio/mp4", "audio/x-m4a",
-                                    "audio/wav", "audio/ogg", "audio/aac", "audio/*"
+                                    "audio/*", "application/ogg", "audio/mpeg", "audio/flac", "audio/mp4", "audio/x-m4a"
                                 )
                             )
                         },
@@ -191,7 +193,7 @@ fun MainScreen(
                         trailingIcon = {
                             if (uiState.searchQuery.isNotEmpty()) {
                                 IconButton(onClick = { viewModel.onSearchQueryChange("") }) {
-                                    Icon(Icons.Default.Clear, contentDescription = "Очистить", tint = Color.White)
+                                    Icon(Icons.Default.Clear, contentDescription = "Очистить", tint = MaterialTheme.colorScheme.primary)
                                 }
                             }
                         },
@@ -199,7 +201,6 @@ fun MainScreen(
                         shape = RoundedCornerShape(24.dp)
                     )
 
-                    // Горизонтальный список групп
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -210,14 +211,15 @@ fun MainScreen(
                         val isAllSelected = uiState.selectedGroup == null
                         Surface(
                             shape = RoundedCornerShape(16.dp),
-                            color = if (isAllSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceVariant,
+                            color = if (isAllSelected) MaterialTheme.colorScheme.primary else Color.White,
                             modifier = Modifier
                                 .clip(RoundedCornerShape(16.dp))
+                                .border(1.5.dp, MaterialTheme.colorScheme.outline, RoundedCornerShape(16.dp))
                                 .combinedClickable(onClick = { viewModel.selectGroup(null) })
                         ) {
                             Text(
                                 "ALL",
-                                color = if (isAllSelected) Color.White else MaterialTheme.colorScheme.onSurfaceVariant,
+                                color = if (isAllSelected) Color.White else MaterialTheme.colorScheme.onSurface,
                                 fontWeight = FontWeight.Bold,
                                 modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
                             )
@@ -227,9 +229,10 @@ fun MainScreen(
 
                         Surface(
                             shape = RoundedCornerShape(16.dp),
-                            color = MaterialTheme.colorScheme.surfaceVariant,
+                            color = Color.White,
                             modifier = Modifier
                                 .clip(RoundedCornerShape(16.dp))
+                                .border(1.5.dp, MaterialTheme.colorScheme.outline, RoundedCornerShape(16.dp))
                                 .combinedClickable(onClick = { viewModel.setCreateGroupDialogVisible(true) })
                         ) {
                             Row(
@@ -248,10 +251,11 @@ fun MainScreen(
                             val isGroupSelected = uiState.selectedGroup == groupName
                             Surface(
                                 shape = RoundedCornerShape(16.dp),
-                                color = if (isGroupSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceVariant,
+                                color = if (isGroupSelected) MaterialTheme.colorScheme.primary else Color.White,
                                 modifier = Modifier
                                     .padding(end = 8.dp)
                                     .clip(RoundedCornerShape(16.dp))
+                                    .border(1.5.dp, MaterialTheme.colorScheme.outline, RoundedCornerShape(16.dp))
                                     .combinedClickable(
                                         onClick = { viewModel.selectGroup(groupName) },
                                         onLongClick = { groupToDelete = groupName }
@@ -259,7 +263,7 @@ fun MainScreen(
                             ) {
                                 Text(
                                     groupName,
-                                    color = if (isGroupSelected) Color.White else MaterialTheme.colorScheme.onSurfaceVariant,
+                                    color = if (isGroupSelected) Color.White else MaterialTheme.colorScheme.onSurface,
                                     fontWeight = FontWeight.Medium,
                                     modifier = Modifier.padding(horizontal = 14.dp, vertical = 8.dp)
                                 )
@@ -313,7 +317,32 @@ fun MainScreen(
             }
         }
 
-        // Вступительный ролик (ТОЛЬКО при холодном старте)
+        // Индикатор добавления больших папок (4 ГБ)
+        if (uiState.isImporting) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(Color.Black.copy(alpha = 0.5f)),
+                contentAlignment = Alignment.Center
+            ) {
+                Surface(
+                    shape = RoundedCornerShape(16.dp),
+                    color = Color.White,
+                    modifier = Modifier.padding(32.dp)
+                ) {
+                    Column(
+                        modifier = Modifier.padding(24.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
+                        Spacer(modifier = Modifier.height(16.dp))
+                        Text("Добавляем песни... Пожалуйста, подождите", fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurface)
+                    }
+                }
+            }
+        }
+
+        // Вступительный ролик (при холодном старте)
         if (isSplashVisible) {
             SplashScreen(
                 isVisible = isSplashVisible,
@@ -325,15 +354,43 @@ fun MainScreen(
         }
     }
 
+    // Диалог кнопки "Class" (выбор группы для текущего трека)
+    if (uiState.isClassDialogVisible) {
+        AlertDialog(
+            onDismissRequest = { viewModel.setClassDialogVisible(false) },
+            title = { Text("Перенести трек в класс/группу", color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold) },
+            text = {
+                if (uiState.groups.isEmpty()) {
+                    Text("Сначала создайте хотя бы одну группу (например, DDLC) через «+ Группа»!")
+                } else {
+                    Column {
+                        uiState.groups.keys.forEach { g ->
+                            TextButton(
+                                onClick = { viewModel.moveCurrentTrackToGroup(g) },
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                Text("🌸 $g", textAlign = TextAlign.Start, modifier = Modifier.fillMaxWidth(), fontWeight = FontWeight.Bold)
+                            }
+                        }
+                    }
+                }
+            },
+            confirmButton = {},
+            dismissButton = {
+                TextButton(onClick = { viewModel.setClassDialogVisible(false) }) { Text("Закрыть") }
+            }
+        )
+    }
+
     if (uiState.isCreateGroupDialogVisible) {
         AlertDialog(
             onDismissRequest = { viewModel.setCreateGroupDialogVisible(false) },
-            title = { Text("Новая группа") },
+            title = { Text("Новая группа", color = MaterialTheme.colorScheme.primary) },
             text = {
                 OutlinedTextField(
                     value = newGroupName,
                     onValueChange = { newGroupName = it },
-                    placeholder = { Text("Название группы (например, Санс)") },
+                    placeholder = { Text("Название (например, DDLC)") },
                     singleLine = true
                 )
             },
@@ -353,7 +410,7 @@ fun MainScreen(
         AlertDialog(
             onDismissRequest = { groupToDelete = null },
             title = { Text("Удалить группу «$gName»?") },
-            text = { Text("Песни из группы останутся во вкладке ALL.") },
+            text = { Text("Песни останутся в общем списке ALL.") },
             confirmButton = {
                 TextButton(onClick = {
                     viewModel.deleteGroup(gName)
@@ -369,7 +426,7 @@ fun MainScreen(
     if (uiState.isAddToGroupDialogVisible) {
         AlertDialog(
             onDismissRequest = { viewModel.setAddToGroupDialogVisible(false) },
-            title = { Text("Добавить в группу") },
+            title = { Text("Добавить в группу", color = MaterialTheme.colorScheme.primary) },
             text = {
                 if (uiState.groups.isEmpty()) {
                     Text("Сначала создайте хотя бы одну группу через «+ Группа»")
@@ -397,16 +454,14 @@ fun MainScreen(
         AlertDialog(
             onDismissRequest = { viewModel.dismissDeleteDialog() },
             title = { Text("Удалить трек?") },
-            text = { Text("Файл «${track.title}» будет безвозвратно удален.") },
+            text = { Text("Файл «${track.title}» будет удален с устройства.") },
             confirmButton = {
                 TextButton(onClick = { viewModel.confirmDeleteTrack() }) {
                     Text("Удалить", color = MaterialTheme.colorScheme.error)
                 }
             },
             dismissButton = {
-                TextButton(onClick = { viewModel.dismissDeleteDialog() }) {
-                    Text("Отмена", color = Color.White)
-                }
+                TextButton(onClick = { viewModel.dismissDeleteDialog() }) { Text("Отмена") }
             }
         )
     }
@@ -422,9 +477,7 @@ fun MainScreen(
                 }
             },
             dismissButton = {
-                TextButton(onClick = { viewModel.dismissBatchDeleteDialog() }) {
-                    Text("Отмена", color = Color.White)
-                }
+                TextButton(onClick = { viewModel.dismissBatchDeleteDialog() }) { Text("Отмена") }
             }
         )
     }
@@ -448,7 +501,8 @@ fun MainScreen(
                 onPlayPauseClick = { viewModel.togglePlayPause() },
                 onNextClick = { viewModel.nextTrack() },
                 onPrevClick = { viewModel.prevTrack() },
-                onSeekTo = { viewModel.seekTo(it) }
+                onSeekTo = { viewModel.seekTo(it) },
+                onClassClick = { viewModel.setClassDialogVisible(true) }
             )
         }
     }
