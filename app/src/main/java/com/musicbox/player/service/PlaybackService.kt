@@ -43,7 +43,39 @@ class PlaybackService : MediaSessionService() {
             PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
         )
 
+        val repeatCmd = CommandButton.Builder()
+            .setSessionCommand(SessionCommand(ACTION_CYCLE_REPEAT, Bundle.EMPTY))
+            .setDisplayName("Зациклить")
+            .setIconResId(android.R.drawable.ic_menu_rotate)
+            .build()
+
+        val shuffleCmd = CommandButton.Builder()
+            .setSessionCommand(SessionCommand(ACTION_TOGGLE_SHUFFLE, Bundle.EMPTY))
+            .setDisplayName("Перемешать")
+            .setIconResId(android.R.drawable.ic_menu_directions)
+            .build()
+
         val callback = object : MediaSession.Callback {
+            override fun onConnect(
+                session: MediaSession,
+                controller: MediaSession.ControllerInfo
+            ): MediaSession.ConnectionResult {
+                val connectionResult = super.onConnect(session, controller)
+                val availableSessionCommands = connectionResult.availableSessionCommands.buildUpon()
+                availableSessionCommands.add(SessionCommand(ACTION_CYCLE_REPEAT, Bundle.EMPTY))
+                availableSessionCommands.add(SessionCommand(ACTION_TOGGLE_SHUFFLE, Bundle.EMPTY))
+
+                return MediaSession.ConnectionResult.AcceptedResultBuilder(session)
+                    .setAvailableSessionCommands(availableSessionCommands.build())
+                    .setAvailablePlayerCommands(connectionResult.availablePlayerCommands)
+                    .setCustomLayout(listOf(shuffleCmd, repeatCmd))
+                    .build()
+            }
+
+            override fun onPostConnect(session: MediaSession, controller: MediaSession.ControllerInfo) {
+                session.setCustomLayout(controller, listOf(shuffleCmd, repeatCmd))
+            }
+
             override fun onCustomCommand(
                 session: MediaSession,
                 controller: MediaSession.ControllerInfo,
@@ -57,13 +89,12 @@ class PlaybackService : MediaSessionService() {
                             Player.REPEAT_MODE_ALL -> Player.REPEAT_MODE_ONE
                             else -> Player.REPEAT_MODE_OFF
                         }
-                        updateNotificationLayout()
                     }
                     ACTION_TOGGLE_SHUFFLE -> {
                         exoPlayer.shuffleModeEnabled = !exoPlayer.shuffleModeEnabled
-                        updateNotificationLayout()
                     }
                 }
+                session.setCustomLayout(listOf(shuffleCmd, repeatCmd))
                 return Futures.immediateFuture(SessionResult(SessionResult.RESULT_SUCCESS))
             }
         }
@@ -72,25 +103,6 @@ class PlaybackService : MediaSessionService() {
             .setSessionActivity(sessionActivityIntent)
             .setCallback(callback)
             .build()
-
-        updateNotificationLayout()
-    }
-
-    private fun updateNotificationLayout() {
-        val session = mediaSession ?: return
-        val repeatCmd = CommandButton.Builder()
-            .setSessionCommand(SessionCommand(ACTION_CYCLE_REPEAT, Bundle.EMPTY))
-            .setDisplayName("Зациклить")
-            .setIconResId(android.R.drawable.ic_menu_rotate)
-            .build()
-
-        val shuffleCmd = CommandButton.Builder()
-            .setSessionCommand(SessionCommand(ACTION_TOGGLE_SHUFFLE, Bundle.EMPTY))
-            .setDisplayName("Перемешать")
-            .setIconResId(android.R.drawable.ic_menu_directions)
-            .build()
-
-        session.setCustomLayout(listOf(repeatCmd, shuffleCmd))
     }
 
     override fun onGetSession(controllerInfo: MediaSession.ControllerInfo): MediaSession? = mediaSession
