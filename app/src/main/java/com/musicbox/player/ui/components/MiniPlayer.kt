@@ -1,5 +1,7 @@
 package com.musicbox.player.ui.components
 
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -72,12 +74,12 @@ fun MiniPlayer(
         modifier = Modifier
             .fillMaxWidth()
             .padding(horizontal = 8.dp, vertical = 6.dp)
-            .clip(RoundedCornerShape(20.dp)),
-        color = MaterialTheme.colorScheme.surfaceContainerHigh,
-        tonalElevation = 10.dp
+            .clip(RoundedCornerShape(16.dp))
+            .border(2.dp, Color(0xFFFF1744), RoundedCornerShape(16.dp)),
+        color = Color(0xF012071F),
+        tonalElevation = 12.dp
     ) {
         Column(modifier = Modifier.padding(horizontal = 14.dp, vertical = 8.dp)) {
-            // Верхняя часть: Название, Автор и Картинка
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -86,7 +88,7 @@ fun MiniPlayer(
             ) {
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
-                        track.title,
+                        "${if (isPlaying) "❤️ " else "💜 "}${track.title}",
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Bold,
                         color = Color.White,
@@ -94,18 +96,17 @@ fun MiniPlayer(
                         overflow = TextOverflow.Ellipsis
                     )
                     Text(
-                        track.artist,
+                        "${track.artist}  [ HP 92/92 ]",
                         style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        color = Color(0xFFFFA000), // HP стиль желтого цвета
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis
                     )
                 }
                 Spacer(modifier = Modifier.width(12.dp))
-                TrackImage(bitmap = track.artworkBitmap, size = 44.dp, cornerRadius = 10.dp)
+                TrackImage(bitmap = track.artworkBitmap, size = 46.dp, cornerRadius = 8.dp)
             }
 
-            // Ползунок перемотки
             Slider(
                 value = sliderValue,
                 onValueChange = {
@@ -117,16 +118,15 @@ fun MiniPlayer(
                     onSeekTo((dragProgress * safeDuration).toLong())
                 },
                 colors = SliderDefaults.colors(
-                    thumbColor = MaterialTheme.colorScheme.primary,
-                    activeTrackColor = MaterialTheme.colorScheme.primary,
-                    inactiveTrackColor = MaterialTheme.colorScheme.surfaceVariant
+                    thumbColor = Color(0xFFFF1744),
+                    activeTrackColor = Color(0xFFFFEB3B), // Undertale HP Bar Yellow
+                    inactiveTrackColor = Color(0xFFC62828) // Undertale HP Bar Empty Red
                 ),
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(18.dp)
             )
 
-            // Нижняя строка: Таймер слева + Все кнопки управления + Таймер справа (БЕЗ 3 ТОЧЕК)
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
@@ -135,45 +135,43 @@ fun MiniPlayer(
                 Text(
                     formatDuration(if (isDraggingSlider) (dragProgress * safeDuration).toLong() else currentPositionMs),
                     style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                    color = Color.White.copy(alpha = 0.7f)
                 )
 
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    // Кнопка Зацикливания (Цикл: Выкл -> Список -> 1 Трек)
                     IconButton(onClick = onCycleRepeat) {
                         val icon = if (repeatMode == Player.REPEAT_MODE_ONE) Icons.Default.RepeatOne else Icons.Default.Repeat
-                        val tint = if (repeatMode != Player.REPEAT_MODE_OFF) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f)
-                        Icon(icon, contentDescription = "Зациклить", tint = tint, modifier = Modifier.size(24.dp))
+                        val tint = if (repeatMode != Player.REPEAT_MODE_OFF) Color(0xFFFF1744) else Color.White.copy(alpha = 0.35f)
+                        Icon(icon, contentDescription = "Repeat", tint = tint, modifier = Modifier.size(24.dp))
                     }
 
-                    // Кнопка Случайный порядок (Shuffle)
                     IconButton(onClick = onToggleShuffle) {
-                        val tint = if (isShuffle) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f)
-                        Icon(Icons.Default.Shuffle, contentDescription = "Перемешать", tint = tint, modifier = Modifier.size(24.dp))
+                        val tint = if (isShuffle) Color(0xFFA855F7) else Color.White.copy(alpha = 0.35f)
+                        Icon(Icons.Default.Shuffle, contentDescription = "Shuffle", tint = tint, modifier = Modifier.size(24.dp))
                     }
 
                     IconButton(onClick = onPrevClick) {
-                        Icon(Icons.Default.SkipPrevious, contentDescription = "Назад", tint = Color.White, modifier = Modifier.size(28.dp))
+                        Icon(Icons.Default.SkipPrevious, contentDescription = "Prev", tint = Color.White, modifier = Modifier.size(28.dp))
                     }
 
                     IconButton(onClick = onPlayPauseClick) {
                         Icon(
                             if (isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
-                            contentDescription = "Старт/Пауза",
-                            tint = MaterialTheme.colorScheme.primary,
+                            contentDescription = "Play/Pause",
+                            tint = Color(0xFFFF1744),
                             modifier = Modifier.size(38.dp)
                         )
                     }
 
                     IconButton(onClick = onNextClick) {
-                        Icon(Icons.Default.SkipNext, contentDescription = "Вперед", tint = Color.White, modifier = Modifier.size(28.dp))
+                        Icon(Icons.Default.SkipNext, contentDescription = "Next", tint = Color.White, modifier = Modifier.size(28.dp))
                     }
                 }
 
                 Text(
                     formatDuration(durationMs),
                     style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                    color = Color.White.copy(alpha = 0.7f)
                 )
             }
         }
