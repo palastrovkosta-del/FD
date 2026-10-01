@@ -15,6 +15,7 @@ import androidx.media3.session.SessionResult
 import com.google.common.util.concurrent.Futures
 import com.google.common.util.concurrent.ListenableFuture
 import com.musicbox.player.MainActivity
+import com.musicbox.player.R
 
 class PlaybackService : MediaSessionService() {
     private var player: ExoPlayer? = null
@@ -46,13 +47,13 @@ class PlaybackService : MediaSessionService() {
         val repeatCmd = CommandButton.Builder()
             .setSessionCommand(SessionCommand(ACTION_CYCLE_REPEAT, Bundle.EMPTY))
             .setDisplayName("Зациклить")
-            .setIconResId(android.R.drawable.ic_menu_rotate)
+            .setIconResId(R.drawable.ic_repeat)
             .build()
 
         val shuffleCmd = CommandButton.Builder()
             .setSessionCommand(SessionCommand(ACTION_TOGGLE_SHUFFLE, Bundle.EMPTY))
             .setDisplayName("Перемешать")
-            .setIconResId(android.R.drawable.ic_menu_directions)
+            .setIconResId(R.drawable.ic_shuffle)
             .build()
 
         val callback = object : MediaSession.Callback {
@@ -103,6 +104,15 @@ class PlaybackService : MediaSessionService() {
             .setSessionActivity(sessionActivityIntent)
             .setCallback(callback)
             .build()
+    }
+
+    // При смахивании вкладки из недавних — ПОЛНОСТЬЮ глушим музыку и убираем виджет!
+    override fun onTaskRemoved(rootIntent: Intent?) {
+        player?.let { p ->
+            p.stop()
+            p.clearMediaItems()
+        }
+        stopSelf()
     }
 
     override fun onGetSession(controllerInfo: MediaSession.ControllerInfo): MediaSession? = mediaSession
