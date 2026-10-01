@@ -6,6 +6,8 @@ import android.content.Context
 import android.content.Intent
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
+import android.graphics.Canvas
+import android.graphics.Rect
 import android.net.Uri
 import androidx.core.content.FileProvider
 import androidx.lifecycle.AndroidViewModel
@@ -217,7 +219,6 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
         _uiState.update { it.copy(isAddToGroupDialogVisible = visible) }
     }
 
-    // Загрузка песен: если выбрана группа — добавляются в нее И в ALL!
     fun importFiles(uris: List<Uri>) {
         val targetGroup = _uiState.value.selectedGroup
         viewModelScope.launch {
@@ -262,16 +263,16 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
-    // Нажатие на песню в списке: если играет — ставим на паузу!
     fun onTrackItemClick(track: Track) {
         if (_uiState.value.currentTrack?.id == track.id) {
             togglePlayPause()
         } else {
-            playTrack(track)
+            // Играет ТОЛЬКО список текущей выбранной группы!
+            playTrack(track, _uiState.value.filteredTracks)
         }
     }
 
-    // Сохранение картинки Санса (app_icon) или обложки песни для экрана блокировки
+    // Подготовка крупного Санса (с обрезкой полей) для экрана блокировки
     private fun getArtworkUri(track: Track): Uri? {
         val cacheFile = File(getApplication<Application>().cacheDir, "lock_art_${track.id.hashCode()}.jpg")
         if (!cacheFile.exists()) {
@@ -281,9 +282,15 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
                         "app_icon", "drawable", getApplication<Application>().packageName
                     )
                     if (resId != 0) {
-                        val bitmap = BitmapFactory.decodeResource(getApplication<Application>().resources, resId)
+                        val original = BitmapFactory.decodeResource(getApplication<Application>().resources, resId)
+                        // Кропаем и центрируем картинку, чтобы Санс был крупным!
+                        val cropSize = (original.width * 0.78f).toInt()
+                        val startX = (original.width - cropSize) / 2
+                        val startY = (original.height - cropSize) / 2
+                        val cropped = Bitmap.createBitmap(original, startX, startY, cropSize, cropSize)
+
                         val stream = ByteArrayOutputStream()
-                        bitmap.compress(Bitmap.CompressFormat.JPEG, 90, stream)
+                        cropped.compress(Bitmap.CompressFormat.JPEG, 92, stream)
                         stream.toByteArray()
                     } else null
                 }
@@ -304,9 +311,14 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
                     "app_icon", "drawable", getApplication<Application>().packageName
                 )
                 if (resId != 0) {
-                    val bitmap = BitmapFactory.decodeResource(getApplication<Application>().resources, resId)
+                    val original = BitmapFactory.decodeResource(getApplication<Application>().resources, resId)
+                    val cropSize = (original.width * 0.78f).toInt()
+                    val startX = (original.width - cropSize) / 2
+                    val startY = (original.height - cropSize) / 2
+                    val cropped = Bitmap.createBitmap(original, startX, startY, cropSize, cropSize)
+
                     val stream = ByteArrayOutputStream()
-                    bitmap.compress(Bitmap.CompressFormat.JPEG, 90, stream)
+                    cropped.compress(Bitmap.CompressFormat.JPEG, 92, stream)
                     stream.toByteArray()
                 } else null
             } catch (e: Exception) { null }
@@ -337,6 +349,7 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
                 .setMediaMetadata(metadataBuilder.build())
                 .build()
         }
+        // Загружаем в ExoPlayer ТОЛЬКО треки текущей группы!
         controller.setMediaItems(mediaItems, startIndex, 0L)
         controller.prepare()
         controller.play()
