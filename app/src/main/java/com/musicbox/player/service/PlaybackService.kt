@@ -106,7 +106,7 @@ class PlaybackService : MediaSessionService() {
             .build()
     }
 
-    // При смахивании вкладки из недавних — ПОЛНОСТЬЮ глушим музыку и убираем виджет!
+    // При смахивании вкладки приложения — музыка полностью выключается и виджет исчезает
     override fun onTaskRemoved(rootIntent: Intent?) {
         player?.let { p ->
             p.stop()
