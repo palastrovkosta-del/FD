@@ -16,39 +16,39 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import kotlin.random.Random
 
-private data class DustParticle(
+private data class SakuraPetal(
     val initialX: Float,
     val initialY: Float,
     val radius: Float,
     val speed: Float,
-    val isRed: Boolean,
+    val isPetal: Boolean,
     val alpha: Float
 )
 
 @Composable
 fun ParticleBackground(modifier: Modifier = Modifier) {
     val particles = remember {
-        List(30) {
-            DustParticle(
+        List(35) {
+            SakuraPetal(
                 initialX = Random.nextFloat(),
                 initialY = Random.nextFloat(),
-                radius = Random.nextFloat() * 3.5f + 1.5f,
-                speed = Random.nextFloat() * 0.5f + 0.2f,
-                isRed = Random.nextBoolean(),
-                alpha = Random.nextFloat() * 0.45f + 0.15f
+                radius = Random.nextFloat() * 6f + 3f,
+                speed = Random.nextFloat() * 0.35f + 0.15f,
+                isPetal = Random.nextBoolean(),
+                alpha = Random.nextFloat() * 0.35f + 0.15f
             )
         }
     }
 
-    val transition = rememberInfiniteTransition(label = "dust")
+    val transition = rememberInfiniteTransition(label = "sakura")
     val progress by transition.animateFloat(
         initialValue = 0f,
         targetValue = 1f,
         animationSpec = infiniteRepeatable(
-            animation = tween(durationMillis = 9000, easing = LinearEasing),
+            animation = tween(durationMillis = 12000, easing = LinearEasing),
             repeatMode = RepeatMode.Restart
         ),
-        label = "dustProgress"
+        label = "sakuraProgress"
     )
 
     Canvas(modifier = modifier.fillMaxSize()) {
@@ -56,12 +56,14 @@ fun ParticleBackground(modifier: Modifier = Modifier) {
         val height = size.height
 
         for (p in particles) {
-            val currentY = (p.initialY - progress * p.speed).let { if (it < 0f) it + 1f else it } * height
-            val currentX = p.initialX * width
-            val particleColor = if (p.isRed) Color(0xFFFF1744) else Color(0xFFA855F7)
+            // Лепестки плавно кружатся и опускаются сверху вниз
+            val currentY = ((p.initialY + progress * p.speed) % 1f) * height
+            val currentX = (p.initialX * width + kotlin.math.sin(progress * 6.28f + p.initialY) * 25f).toFloat()
+
+            val petalColor = if (p.isPetal) Color(0xFFFF8DA1) else Color(0xFFFFB6C1)
 
             drawCircle(
-                color = particleColor.copy(alpha = p.alpha),
+                color = petalColor.copy(alpha = p.alpha),
                 radius = p.radius,
                 center = Offset(currentX, currentY)
             )
