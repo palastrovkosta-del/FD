@@ -6,7 +6,10 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
+import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -15,15 +18,19 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Clear
+import androidx.compose.material.icons.filled.CreateNewFolder
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.DoneAll
+import androidx.compose.material.icons.filled.Folder
 import androidx.compose.material.icons.filled.MusicNote
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Share
@@ -34,13 +41,18 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
@@ -52,10 +64,15 @@ import com.musicbox.player.ui.components.ParticleBackground
 import com.musicbox.player.ui.components.TrackItem
 import com.musicbox.player.ui.viewmodel.MusicViewModel
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun MainScreen(viewModel: MusicViewModel) {
     val uiState by viewModel.uiState.collectAsState()
     val context = LocalContext.current
+    var isSplashActive by remember { mutableStateOf(true) }
+
+    var newGroupName by remember { mutableStateOf("") }
+    var groupToDelete by remember { mutableStateOf<String?>(null) }
 
     val filePickerLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.OpenMultipleDocuments()
@@ -68,7 +85,6 @@ fun MainScreen(viewModel: MusicViewModel) {
     }
 
     Box(modifier = Modifier.fillMaxSize()) {
-        // Фоновые светящиеся частицы
         ParticleBackground()
 
         Scaffold(
@@ -97,15 +113,15 @@ fun MainScreen(viewModel: MusicViewModel) {
                         IconButton(onClick = { viewModel.selectAll() }) {
                             Icon(Icons.Default.DoneAll, contentDescription = "Выбрать все", tint = Color.White)
                         }
+                        // Добавить в подгруппу
+                        IconButton(onClick = { viewModel.setAddToGroupDialogVisible(true) }) {
+                            Icon(Icons.Default.Folder, contentDescription = "В группу", tint = MaterialTheme.colorScheme.primary)
+                        }
                         IconButton(onClick = { viewModel.shareSelectedTracks(context) }) {
                             Icon(Icons.Default.Share, contentDescription = "Поделиться", tint = Color.White)
                         }
                         IconButton(onClick = { viewModel.requestBatchDeleteConfirmation() }) {
-                            Icon(
-                                Icons.Default.Delete,
-                                contentDescription = "Удалить выбранные",
-                                tint = MaterialTheme.colorScheme.error
-                            )
+                            Icon(Icons.Default.Delete, contentDescription = "Удалить", tint = MaterialTheme.colorScheme.error)
                         }
                     }
                 }
@@ -159,7 +175,7 @@ fun MainScreen(viewModel: MusicViewModel) {
                         onValueChange = { viewModel.onSearchQueryChange(it) },
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(horizontal = 16.dp, vertical = 10.dp),
+                            .padding(horizontal = 16.dp, vertical = 6.dp),
                         placeholder = { Text("Поиск трека...", color = MaterialTheme.colorScheme.onSurfaceVariant) },
                         leadingIcon = { Icon(Icons.Default.Search, contentDescription = null, tint = MaterialTheme.colorScheme.primary) },
                         trailingIcon = {
@@ -172,6 +188,77 @@ fun MainScreen(viewModel: MusicViewModel) {
                         singleLine = true,
                         shape = RoundedCornerShape(24.dp)
                     )
+
+                    // Горизонтальный список подгрупп с кнопкой ALL
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .horizontalScroll(rememberScrollState())
+                            .padding(horizontal = 16.dp, vertical = 6.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        // Кнопка ALL (Все треки)
+                        val isAllSelected = uiState.selectedGroup == null
+                        Surface(
+                            shape = RoundedCornerShape(16.dp),
+                            color = if (isAllSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceVariant,
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(16.dp))
+                                .combinedClickable(onClick = { viewModel.selectGroup(null) })
+                        ) {
+                            Text(
+                                "ALL",
+                                color = if (isAllSelected) Color.White else MaterialTheme.colorScheme.onSurfaceVariant,
+                                fontWeight = FontWeight.Bold,
+                                modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
+                            )
+                        }
+
+                        Spacer(modifier = Modifier.width(8.dp))
+
+                        // Кнопка "+ Группа"
+                        Surface(
+                            shape = RoundedCornerShape(16.dp),
+                            color = MaterialTheme.colorScheme.surfaceVariant,
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(16.dp))
+                                .combinedClickable(onClick = { viewModel.setCreateGroupDialogVisible(true) })
+                        ) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp)
+                            ) {
+                                Icon(Icons.Default.CreateNewFolder, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.height(18.dp))
+                                Spacer(modifier = Modifier.width(4.dp))
+                                Text("+ Группа", color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.SemiBold)
+                            }
+                        }
+
+                        Spacer(modifier = Modifier.width(8.dp))
+
+                        // Список групп
+                        uiState.groups.keys.forEach { groupName ->
+                            val isGroupSelected = uiState.selectedGroup == groupName
+                            Surface(
+                                shape = RoundedCornerShape(16.dp),
+                                color = if (isGroupSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceVariant,
+                                modifier = Modifier
+                                    .padding(end = 8.dp)
+                                    .clip(RoundedCornerShape(16.dp))
+                                    .combinedClickable(
+                                        onClick = { viewModel.selectGroup(groupName) },
+                                        onLongClick = { groupToDelete = groupName }
+                                    )
+                            ) {
+                                Text(
+                                    groupName,
+                                    color = if (isGroupSelected) Color.White else MaterialTheme.colorScheme.onSurfaceVariant,
+                                    fontWeight = FontWeight.Medium,
+                                    modifier = Modifier.padding(horizontal = 14.dp, vertical = 8.dp)
+                                )
+                            }
+                        }
+                    }
                 }
 
                 if (uiState.filteredTracks.isEmpty()) {
@@ -191,7 +278,7 @@ fun MainScreen(viewModel: MusicViewModel) {
                             Text(
                                 text = if (uiState.tracks.isEmpty())
                                     "Нет треков\nНажмите +, чтобы добавить аудиофайлы"
-                                else "Ничего не найдено",
+                                else "В этой группе пока нет треков",
                                 textAlign = TextAlign.Center,
                                 style = MaterialTheme.typography.bodyLarge,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
@@ -213,13 +300,88 @@ fun MainScreen(viewModel: MusicViewModel) {
                                 onDeleteClick = { viewModel.requestDeleteConfirmation(track) }
                             )
                         }
-                        item {
-                            Spacer(modifier = Modifier.height(88.dp))
-                        }
+                        item { Spacer(modifier = Modifier.height(88.dp)) }
                     }
                 }
             }
         }
+
+        // Вертикальный вступительный ролик при холодном запуске
+        SplashScreen(
+            isVisible = isSplashActive,
+            onSplashFinished = { isSplashActive = false }
+        )
+    }
+
+    // Диалог создания группы
+    if (uiState.isCreateGroupDialogVisible) {
+        AlertDialog(
+            onDismissRequest = { viewModel.setCreateGroupDialogVisible(false) },
+            title = { Text("Новая группа") },
+            text = {
+                OutlinedTextField(
+                    value = newGroupName,
+                    onValueChange = { newGroupName = it },
+                    placeholder = { Text("Название группы (например, Фонк)") },
+                    singleLine = true
+                )
+            },
+            confirmButton = {
+                TextButton(onClick = {
+                    viewModel.createGroup(newGroupName)
+                    newGroupName = ""
+                }) { Text("Создать") }
+            },
+            dismissButton = {
+                TextButton(onClick = { viewModel.setCreateGroupDialogVisible(false) }) { Text("Отмена") }
+            }
+        )
+    }
+
+    // Диалог удаления группы
+    groupToDelete?.let { gName ->
+        AlertDialog(
+            onDismissRequest = { groupToDelete = null },
+            title = { Text("Удалить группу «$gName»?") },
+            text = { Text("Сами песни с телефона не удалятся, только группировка.") },
+            confirmButton = {
+                TextButton(onClick = {
+                    viewModel.deleteGroup(gName)
+                    groupToDelete = null
+                }) { Text("Удалить", color = MaterialTheme.colorScheme.error) }
+            },
+            dismissButton = {
+                TextButton(onClick = { groupToDelete = null }) { Text("Отмена") }
+            }
+        )
+    }
+
+    // Диалог добавления выделенных треков в группу
+    if (uiState.isAddToGroupDialogVisible) {
+        AlertDialog(
+            onDismissRequest = { viewModel.setAddToGroupDialogVisible(false) },
+            title = { Text("Добавить в группу") },
+            text = {
+                if (uiState.groups.isEmpty()) {
+                    Text("Сначала создайте хотя бы одну группу через «+ Группа»")
+                } else {
+                    Column {
+                        uiState.groups.keys.forEach { g ->
+                            TextButton(
+                                onClick = { viewModel.addSelectedTracksToGroup(g) },
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                Text(g, textAlign = TextAlign.Start, modifier = Modifier.fillMaxWidth())
+                            }
+                        }
+                    }
+                }
+            },
+            confirmButton = {},
+            dismissButton = {
+                TextButton(onClick = { viewModel.setAddToGroupDialogVisible(false) }) { Text("Закрыть") }
+            }
+        )
     }
 
     // Диалог удаления 1 трека
