@@ -18,6 +18,10 @@ class MainActivity : ComponentActivity() {
     private val requestNotificationPermissionLauncher =
         registerForActivityResult(ActivityResultContracts.RequestPermission()) { }
 
+    companion object {
+        var isColdStart = true
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
@@ -28,7 +32,12 @@ class MainActivity : ComponentActivity() {
         }
         setContent {
             MusicBoxTheme {
-                MainScreen(viewModel = viewModel)
+                MainScreen(
+                    viewModel = viewModel,
+                    shouldShowSplash = isColdStart,
+                    onSplashDone = { isColdStart = false },
+                    onMinimize = { moveTaskToBack(true) }
+                )
             }
         }
     }
