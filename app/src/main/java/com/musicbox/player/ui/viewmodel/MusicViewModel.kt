@@ -27,6 +27,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import java.io.ByteArrayOutputStream
 import java.io.File
 import java.io.FileOutputStream
 
@@ -47,7 +48,7 @@ data class PlayerUiState(
     val selectedTrackIds: Set<String> = emptySet(),
     val isBatchDeleteConfirmVisible: Boolean = false,
     val groups: Map<String, Set<String>> = emptyMap(),
-    val selectedGroup: String? = null, // null = ALL
+    val selectedGroup: String? = null,
     val isCreateGroupDialogVisible: Boolean = false,
     val isAddToGroupDialogVisible: Boolean = false
 )
@@ -216,9 +217,19 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
         _uiState.update { it.copy(isAddToGroupDialogVisible = visible) }
     }
 
+    // Загрузка песен: если выбрана группа — добавляются в нее И в ALL!
     fun importFiles(uris: List<Uri>) {
+        val targetGroup = _uiState.value.selectedGroup
         viewModelScope.launch {
-            repository.importFiles(uris)
+            val newTrackIds = repository.importFiles(uris)
+            if (targetGroup != null && newTrackIds.isNotEmpty()) {
+                val updated = _uiState.value.groups.toMutableMap()
+                val currentTracks = updated[targetGroup]?.toMutableSet() ?: mutableSetOf()
+                currentTracks.addAll(newTrackIds)
+                updated[targetGroup] = currentTracks
+                repository.saveGroups(updated)
+                _uiState.update { it.copy(groups = updated) }
+            }
             loadTracks()
         }
     }
@@ -251,42 +262,73 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
-    // Сохраняет обложку или аватарку во временный файл для экрана блокировки
-    private fun getCoverArtUri(track: Track): Uri {
-        val cacheFile = File(getApplication<Application>().cacheDir, "lockscreen_art_${track.id.hashCode()}.jpg")
+    // Нажатие на песню в списке: если играет — ставим на паузу!
+    fun onTrackItemClick(track: Track) {
+        if (_uiState.value.currentTrack?.id == track.id) {
+            togglePlayPause()
+        } else {
+            playTrack(track)
+        }
+    }
+
+    // Сохранение картинки Санса (app_icon) или обложки песни для экрана блокировки
+    private fun getArtworkUri(track: Track): Uri? {
+        val cacheFile = File(getApplication<Application>().cacheDir, "lock_art_${track.id.hashCode()}.jpg")
         if (!cacheFile.exists()) {
-            val bytes = track.artworkBytes ?: run {
-                // Если нет обложки — загружаем аватарку приложения
-                try {
-                    val resId = getApplication<Application>().resources.getIdentifier("app_icon", "drawable", getApplication<Application>().packageName)
+            try {
+                val bytes = track.artworkBytes ?: run {
+                    val resId = getApplication<Application>().resources.getIdentifier(
+                        "app_icon", "drawable", getApplication<Application>().packageName
+                    )
                     if (resId != 0) {
                         val bitmap = BitmapFactory.decodeResource(getApplication<Application>().resources, resId)
-                        val out = java.io.ByteArrayOutputStream()
-                        bitmap.compress(Bitmap.CompressFormat.JPEG, 90, out)
-                        out.toByteArray()
+                        val stream = ByteArrayOutputStream()
+                        bitmap.compress(Bitmap.CompressFormat.JPEG, 90, stream)
+                        stream.toByteArray()
                     } else null
-                } catch (e: Exception) { null }
-            }
-            if (bytes != null) {
-                FileOutputStream(cacheFile).use { it.write(bytes) }
+                }
+                if (bytes != null) {
+                    FileOutputStream(cacheFile).use { it.write(bytes) }
+                }
+            } catch (e: Exception) {
+                e.printStackTrace()
             }
         }
-        return Uri.fromFile(cacheFile)
+        return if (cacheFile.exists()) Uri.fromFile(cacheFile) else null
+    }
+
+    private fun getArtworkBytes(track: Track): ByteArray? {
+        return track.artworkBytes ?: run {
+            try {
+                val resId = getApplication<Application>().resources.getIdentifier(
+                    "app_icon", "drawable", getApplication<Application>().packageName
+                )
+                if (resId != 0) {
+                    val bitmap = BitmapFactory.decodeResource(getApplication<Application>().resources, resId)
+                    val stream = ByteArrayOutputStream()
+                    bitmap.compress(Bitmap.CompressFormat.JPEG, 90, stream)
+                    stream.toByteArray()
+                } else null
+            } catch (e: Exception) { null }
+        }
     }
 
     fun playTrack(track: Track, tracksQueue: List<Track> = _uiState.value.filteredTracks) {
         val controller = mediaController ?: return
         val startIndex = tracksQueue.indexOf(track).coerceAtLeast(0)
         val mediaItems = tracksQueue.map { t ->
-            val artUri = getCoverArtUri(t)
+            val artUri = getArtworkUri(t)
+            val artBytes = getArtworkBytes(t)
             val metadataBuilder = MediaMetadata.Builder()
                 .setTitle(t.title)
                 .setArtist(t.artist)
                 .setAlbumTitle(t.album)
-                .setArtworkUri(artUri)
 
-            t.artworkBytes?.let {
-                metadataBuilder.setArtworkData(it, MediaMetadata.PICTURE_TYPE_FRONT_COVER)
+            if (artUri != null) {
+                metadataBuilder.setArtworkUri(artUri)
+            }
+            if (artBytes != null) {
+                metadataBuilder.setArtworkData(artBytes, MediaMetadata.PICTURE_TYPE_FRONT_COVER)
             }
 
             MediaItem.Builder()
