@@ -23,9 +23,9 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Clear
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.DoneAll
 import androidx.compose.material.icons.filled.MusicNote
 import androidx.compose.material.icons.filled.Search
-import androidx.compose.material.icons.filled.SelectAll
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.FloatingActionButton
@@ -41,13 +41,14 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.musicbox.player.ui.components.FullScreenPlayer
 import com.musicbox.player.ui.components.MiniPlayer
-import com.musicbox.player.ui.components.PlayerMenuBottomSheet
+import com.musicbox.player.ui.components.ParticleBackground
 import com.musicbox.player.ui.components.TrackItem
 import com.musicbox.player.ui.viewmodel.MusicViewModel
 
@@ -66,154 +67,162 @@ fun MainScreen(viewModel: MusicViewModel) {
         viewModel.clearSelection()
     }
 
-    Scaffold(
-        topBar = {
-            if (uiState.isSelectionMode) {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .background(MaterialTheme.colorScheme.surfaceVariant)
-                        .padding(horizontal = 8.dp, vertical = 6.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    IconButton(onClick = { viewModel.clearSelection() }) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Cancel")
-                    }
-                    Text(
-                        "Выбрано: ${uiState.selectedTrackIds.size}",
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Bold,
-                        modifier = Modifier
-                            .weight(1f)
-                            .padding(start = 8.dp)
-                    )
-                    IconButton(onClick = { viewModel.selectAll() }) {
-                        Icon(Icons.Default.SelectAll, contentDescription = "Select All")
-                    }
-                    IconButton(onClick = { viewModel.shareSelectedTracks(context) }) {
-                        Icon(Icons.Default.Share, contentDescription = "Share")
-                    }
-                    IconButton(onClick = { viewModel.requestBatchDeleteConfirmation() }) {
-                        Icon(
-                            Icons.Default.Delete,
-                            contentDescription = "Delete Selected",
-                            tint = MaterialTheme.colorScheme.error
-                        )
-                    }
-                }
-            }
-        },
-        floatingActionButton = {
-            if (!uiState.isSelectionMode) {
-                FloatingActionButton(
-                    onClick = {
-                        filePickerLauncher.launch(
-                            arrayOf(
-                                "audio/mpeg", "audio/flac", "audio/mp4", "audio/x-m4a",
-                                "audio/wav", "audio/ogg", "audio/aac", "audio/*"
-                            )
-                        )
-                    },
-                    containerColor = MaterialTheme.colorScheme.primary,
-                    contentColor = MaterialTheme.colorScheme.onPrimary
-                ) {
-                    Icon(Icons.Default.Add, contentDescription = "Add Track")
-                }
-            }
-        },
-        bottomBar = {
-            if (uiState.currentTrack != null) {
-                MiniPlayer(
-                    track = uiState.currentTrack!!,
-                    isPlaying = uiState.isPlaying,
-                    currentPositionMs = uiState.currentPosition,
-                    durationMs = uiState.duration,
-                    repeatMode = uiState.repeatMode,
-                    isShuffle = uiState.isShuffle,
-                    onPlayPauseClick = { viewModel.togglePlayPause() },
-                    onPrevClick = { viewModel.prevTrack() },
-                    onNextClick = { viewModel.nextTrack() },
-                    onMenuClick = { viewModel.setMenuBottomSheetVisible(true) },
-                    onSeekTo = { viewModel.seekTo(it) },
-                    onClick = { viewModel.setFullScreenPlayerVisible(true) }
-                )
-            }
-        }
-    ) { innerPadding ->
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(innerPadding)
-        ) {
-            if (!uiState.isSelectionMode) {
-                OutlinedTextField(
-                    value = uiState.searchQuery,
-                    onValueChange = { viewModel.onSearchQueryChange(it) },
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 16.dp, vertical = 10.dp),
-                    placeholder = { Text("Поиск трека или исполнителя...") },
-                    leadingIcon = { Icon(Icons.Default.Search, contentDescription = null) },
-                    trailingIcon = {
-                        if (uiState.searchQuery.isNotEmpty()) {
-                            IconButton(onClick = { viewModel.onSearchQueryChange("") }) {
-                                Icon(Icons.Default.Clear, contentDescription = "Clear")
-                            }
-                        }
-                    },
-                    singleLine = true,
-                    shape = RoundedCornerShape(24.dp)
-                )
-            }
+    Box(modifier = Modifier.fillMaxSize()) {
+        // Фоновые светящиеся частицы
+        ParticleBackground()
 
-            if (uiState.filteredTracks.isEmpty()) {
-                Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(32.dp),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        Icon(
-                            Icons.Default.MusicNote,
-                            contentDescription = null,
-                            modifier = Modifier.padding(bottom = 16.dp),
-                            tint = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
+        Scaffold(
+            containerColor = Color.Transparent,
+            topBar = {
+                if (uiState.isSelectionMode) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .background(MaterialTheme.colorScheme.surfaceVariant)
+                            .padding(horizontal = 8.dp, vertical = 6.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        IconButton(onClick = { viewModel.clearSelection() }) {
+                            Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Отмена", tint = Color.White)
+                        }
                         Text(
-                            text = if (uiState.tracks.isEmpty())
-                                "Нет треков.\nНажмите +, чтобы добавить аудиофайлы"
-                            else "Ничего не найдено",
-                            textAlign = TextAlign.Center,
-                            style = MaterialTheme.typography.bodyLarge,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                            "Выбрано: ${uiState.selectedTrackIds.size}",
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold,
+                            color = Color.White,
+                            modifier = Modifier
+                                .weight(1f)
+                                .padding(start = 8.dp)
                         )
+                        IconButton(onClick = { viewModel.selectAll() }) {
+                            Icon(Icons.Default.DoneAll, contentDescription = "Выбрать все", tint = Color.White)
+                        }
+                        IconButton(onClick = { viewModel.shareSelectedTracks(context) }) {
+                            Icon(Icons.Default.Share, contentDescription = "Поделиться", tint = Color.White)
+                        }
+                        IconButton(onClick = { viewModel.requestBatchDeleteConfirmation() }) {
+                            Icon(
+                                Icons.Default.Delete,
+                                contentDescription = "Удалить выбранные",
+                                tint = MaterialTheme.colorScheme.error
+                            )
+                        }
                     }
                 }
-            } else {
-                LazyColumn(modifier = Modifier.fillMaxSize()) {
-                    items(uiState.filteredTracks, key = { it.id }) { track ->
-                        val isSelected = uiState.selectedTrackIds.contains(track.id)
-                        TrackItem(
-                            track = track,
-                            isCurrentPlaying = track.id == uiState.currentTrack?.id,
-                            isPlaying = uiState.isPlaying,
-                            isSelectionMode = uiState.isSelectionMode,
-                            isSelected = isSelected,
-                            onSelectToggle = { viewModel.toggleSelectTrack(track.id) },
-                            onClick = { viewModel.playTrack(track) },
-                            onDeleteClick = { viewModel.requestDeleteConfirmation(track) }
-                        )
+            },
+            floatingActionButton = {
+                if (!uiState.isSelectionMode) {
+                    FloatingActionButton(
+                        onClick = {
+                            filePickerLauncher.launch(
+                                arrayOf(
+                                    "audio/mpeg", "audio/flac", "audio/mp4", "audio/x-m4a",
+                                    "audio/wav", "audio/ogg", "audio/aac", "audio/*"
+                                )
+                            )
+                        },
+                        containerColor = MaterialTheme.colorScheme.primary,
+                        contentColor = Color.White
+                    ) {
+                        Icon(Icons.Default.Add, contentDescription = "Добавить музыку")
                     }
-                    item {
-                        Spacer(modifier = Modifier.height(88.dp))
+                }
+            },
+            bottomBar = {
+                if (uiState.currentTrack != null) {
+                    MiniPlayer(
+                        track = uiState.currentTrack!!,
+                        isPlaying = uiState.isPlaying,
+                        currentPositionMs = uiState.currentPosition,
+                        durationMs = uiState.duration,
+                        repeatMode = uiState.repeatMode,
+                        isShuffle = uiState.isShuffle,
+                        onCycleRepeat = { viewModel.cycleRepeatMode() },
+                        onToggleShuffle = { viewModel.toggleShuffle() },
+                        onPlayPauseClick = { viewModel.togglePlayPause() },
+                        onPrevClick = { viewModel.prevTrack() },
+                        onNextClick = { viewModel.nextTrack() },
+                        onSeekTo = { viewModel.seekTo(it) },
+                        onClick = { viewModel.setFullScreenPlayerVisible(true) }
+                    )
+                }
+            }
+        ) { innerPadding ->
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(innerPadding)
+            ) {
+                if (!uiState.isSelectionMode) {
+                    OutlinedTextField(
+                        value = uiState.searchQuery,
+                        onValueChange = { viewModel.onSearchQueryChange(it) },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 16.dp, vertical = 10.dp),
+                        placeholder = { Text("Поиск трека...", color = MaterialTheme.colorScheme.onSurfaceVariant) },
+                        leadingIcon = { Icon(Icons.Default.Search, contentDescription = null, tint = MaterialTheme.colorScheme.primary) },
+                        trailingIcon = {
+                            if (uiState.searchQuery.isNotEmpty()) {
+                                IconButton(onClick = { viewModel.onSearchQueryChange("") }) {
+                                    Icon(Icons.Default.Clear, contentDescription = "Очистить", tint = Color.White)
+                                }
+                            }
+                        },
+                        singleLine = true,
+                        shape = RoundedCornerShape(24.dp)
+                    )
+                }
+
+                if (uiState.filteredTracks.isEmpty()) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(32.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                            Icon(
+                                Icons.Default.MusicNote,
+                                contentDescription = null,
+                                modifier = Modifier.padding(bottom = 16.dp),
+                                tint = MaterialTheme.colorScheme.primary.copy(alpha = 0.6f)
+                            )
+                            Text(
+                                text = if (uiState.tracks.isEmpty())
+                                    "Нет треков\nНажмите +, чтобы добавить аудиофайлы"
+                                else "Ничего не найдено",
+                                textAlign = TextAlign.Center,
+                                style = MaterialTheme.typography.bodyLarge,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    }
+                } else {
+                    LazyColumn(modifier = Modifier.fillMaxSize()) {
+                        items(uiState.filteredTracks, key = { it.id }) { track ->
+                            val isSelected = uiState.selectedTrackIds.contains(track.id)
+                            TrackItem(
+                                track = track,
+                                isCurrentPlaying = track.id == uiState.currentTrack?.id,
+                                isPlaying = uiState.isPlaying,
+                                isSelectionMode = uiState.isSelectionMode,
+                                isSelected = isSelected,
+                                onSelectToggle = { viewModel.toggleSelectTrack(track.id) },
+                                onClick = { viewModel.playTrack(track) },
+                                onDeleteClick = { viewModel.requestDeleteConfirmation(track) }
+                            )
+                        }
+                        item {
+                            Spacer(modifier = Modifier.height(88.dp))
+                        }
                     }
                 }
             }
         }
     }
 
-    // Диалог подтверждения удаления 1 трека
+    // Диалог удаления 1 трека
     uiState.trackPendingDelete?.let { track ->
         AlertDialog(
             onDismissRequest = { viewModel.dismissDeleteDialog() },
@@ -226,7 +235,7 @@ fun MainScreen(viewModel: MusicViewModel) {
             },
             dismissButton = {
                 TextButton(onClick = { viewModel.dismissDeleteDialog() }) {
-                    Text("Отмена")
+                    Text("Отмена", color = Color.White)
                 }
             }
         )
@@ -237,7 +246,7 @@ fun MainScreen(viewModel: MusicViewModel) {
         AlertDialog(
             onDismissRequest = { viewModel.dismissBatchDeleteDialog() },
             title = { Text("Удалить выбранные треки?") },
-            text = { Text("Будет безвозвратно удалено треков: ${uiState.selectedTrackIds.size}.") },
+            text = { Text("Будет удалено треков: ${uiState.selectedTrackIds.size}.") },
             confirmButton = {
                 TextButton(onClick = { viewModel.confirmBatchDelete() }) {
                     Text("Удалить все", color = MaterialTheme.colorScheme.error)
@@ -245,22 +254,9 @@ fun MainScreen(viewModel: MusicViewModel) {
             },
             dismissButton = {
                 TextButton(onClick = { viewModel.dismissBatchDeleteDialog() }) {
-                    Text("Отмена")
+                    Text("Отмена", color = Color.White)
                 }
             }
-        )
-    }
-
-    // Telegram-меню (Зациклить трек, зациклить список, случайный порядок)
-    if (uiState.isMenuBottomSheetVisible) {
-        PlayerMenuBottomSheet(
-            repeatMode = uiState.repeatMode,
-            isShuffle = uiState.isShuffle,
-            onRepeatOneClick = { viewModel.toggleRepeatOne() },
-            onRepeatAllClick = { viewModel.toggleRepeatAll() },
-            onShuffleClick = { viewModel.toggleShuffle() },
-            onReverseOrderClick = { viewModel.reverseQueue() },
-            onDismissRequest = { viewModel.setMenuBottomSheetVisible(false) }
         )
     }
 
@@ -276,8 +272,11 @@ fun MainScreen(viewModel: MusicViewModel) {
                 isPlaying = uiState.isPlaying,
                 currentPositionMs = uiState.currentPosition,
                 durationMs = uiState.duration,
+                repeatMode = uiState.repeatMode,
+                isShuffle = uiState.isShuffle,
+                onCycleRepeat = { viewModel.cycleRepeatMode() },
+                onToggleShuffle = { viewModel.toggleShuffle() },
                 onBackClick = { viewModel.setFullScreenPlayerVisible(false) },
-                onMenuClick = { viewModel.setMenuBottomSheetVisible(true) },
                 onPlayPauseClick = { viewModel.togglePlayPause() },
                 onNextClick = { viewModel.nextTrack() },
                 onPrevClick = { viewModel.prevTrack() },
