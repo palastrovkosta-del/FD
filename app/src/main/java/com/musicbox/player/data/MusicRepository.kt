@@ -30,8 +30,8 @@ class MusicRepository(private val context: Context) {
         files.mapNotNull { extractTrackMetadata(it) }.sortedBy { it.title.lowercase() }
     }
 
-    suspend fun importFiles(uris: List<Uri>): Int = withContext(Dispatchers.IO) {
-        var count = 0
+    suspend fun importFiles(uris: List<Uri>): List<String> = withContext(Dispatchers.IO) {
+        val newTrackIds = mutableListOf<String>()
         for (uri in uris) {
             val fileName = queryFileName(uri) ?: "track_${UUID.randomUUID()}.mp3"
             val extension = fileName.substringAfterLast(".", "").lowercase()
@@ -40,10 +40,10 @@ class MusicRepository(private val context: Context) {
                 context.contentResolver.openInputStream(uri)?.use { input ->
                     FileOutputStream(destFile).use { output -> input.copyTo(output) }
                 }
-                count++
+                newTrackIds.add(destFile.absolutePath)
             }
         }
-        count
+        newTrackIds
     }
 
     suspend fun deleteTrack(track: Track): Boolean = withContext(Dispatchers.IO) {
@@ -51,7 +51,6 @@ class MusicRepository(private val context: Context) {
         if (file.exists()) file.delete() else false
     }
 
-    // Сохранение и загрузка подгрупп
     suspend fun loadGroups(): Map<String, Set<String>> = withContext(Dispatchers.IO) {
         if (!groupsFile.exists()) return@withContext emptyMap()
         try {
