@@ -9,6 +9,7 @@ import android.provider.OpenableColumns
 import com.musicbox.player.model.Track
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import org.json.JSONObject
 import java.io.ByteArrayOutputStream
 import java.io.File
 import java.io.FileOutputStream
@@ -18,6 +19,9 @@ class MusicRepository(private val context: Context) {
     private val supportedExtensions = setOf("mp3", "flac", "m4a", "wav", "ogg", "aac")
     val musicDir: File
         get() = File(context.filesDir, "music").apply { if (!exists()) mkdirs() }
+
+    private val groupsFile: File
+        get() = File(context.filesDir, "groups.json")
 
     suspend fun getTracks(): List<Track> = withContext(Dispatchers.IO) {
         val files = musicDir.listFiles { file ->
@@ -45,6 +49,40 @@ class MusicRepository(private val context: Context) {
     suspend fun deleteTrack(track: Track): Boolean = withContext(Dispatchers.IO) {
         val file = File(track.filePath)
         if (file.exists()) file.delete() else false
+    }
+
+    // Сохранение и загрузка подгрупп
+    suspend fun loadGroups(): Map<String, Set<String>> = withContext(Dispatchers.IO) {
+        if (!groupsFile.exists()) return@withContext emptyMap()
+        try {
+            val json = JSONObject(groupsFile.readText())
+            val result = mutableMapOf<String, Set<String>>()
+            val keys = json.keys()
+            while (keys.hasNext()) {
+                val key = keys.next()
+                val array = json.getJSONArray(key)
+                val set = mutableSetOf<String>()
+                for (i in 0 until array.length()) {
+                    set.add(array.getString(i))
+                }
+                result[key] = set
+            }
+            result
+        } catch (e: Exception) {
+            emptyMap()
+        }
+    }
+
+    suspend fun saveGroups(groups: Map<String, Set<String>>) = withContext(Dispatchers.IO) {
+        try {
+            val json = JSONObject()
+            groups.forEach { (name, tracks) ->
+                json.put(name, org.json.JSONArray(tracks))
+            }
+            groupsFile.writeText(json.toString())
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
     }
 
     private fun extractTrackMetadata(file: File): Track? {
