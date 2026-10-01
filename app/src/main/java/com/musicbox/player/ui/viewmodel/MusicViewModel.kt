@@ -4,6 +4,8 @@ import android.app.Application
 import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
+import android.graphics.Bitmap
+import android.graphics.BitmapFactory
 import android.net.Uri
 import androidx.core.content.FileProvider
 import androidx.lifecycle.AndroidViewModel
@@ -26,6 +28,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import java.io.File
+import java.io.FileOutputStream
 
 data class PlayerUiState(
     val tracks: List<Track> = emptyList(),
@@ -42,7 +45,11 @@ data class PlayerUiState(
     val trackPendingDelete: Track? = null,
     val isSelectionMode: Boolean = false,
     val selectedTrackIds: Set<String> = emptySet(),
-    val isBatchDeleteConfirmVisible: Boolean = false
+    val isBatchDeleteConfirmVisible: Boolean = false,
+    val groups: Map<String, Set<String>> = emptyMap(),
+    val selectedGroup: String? = null, // null = ALL
+    val isCreateGroupDialogVisible: Boolean = false,
+    val isAddToGroupDialogVisible: Boolean = false
 )
 
 class MusicViewModel(application: Application) : AndroidViewModel(application) {
@@ -56,6 +63,7 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
     init {
         initMediaController()
         loadTracks()
+        loadGroups()
     }
 
     private fun initMediaController() {
@@ -124,9 +132,7 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
-    private fun stopProgressUpdate() {
-        progressJob?.cancel()
-    }
+    private fun stopProgressUpdate() { progressJob?.cancel() }
 
     fun loadTracks() {
         viewModelScope.launch {
@@ -134,10 +140,80 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
             _uiState.update {
                 it.copy(
                     tracks = list,
-                    filteredTracks = filterList(list, it.searchQuery)
+                    filteredTracks = filterList(list, it.searchQuery, it.selectedGroup, it.groups)
                 )
             }
         }
+    }
+
+    private fun loadGroups() {
+        viewModelScope.launch {
+            val groups = repository.loadGroups()
+            _uiState.update {
+                it.copy(
+                    groups = groups,
+                    filteredTracks = filterList(it.tracks, it.searchQuery, it.selectedGroup, groups)
+                )
+            }
+        }
+    }
+
+    fun selectGroup(groupName: String?) {
+        _uiState.update {
+            it.copy(
+                selectedGroup = groupName,
+                filteredTracks = filterList(it.tracks, it.searchQuery, groupName, it.groups)
+            )
+        }
+    }
+
+    fun createGroup(name: String) {
+        if (name.isBlank()) return
+        val updated = _uiState.value.groups.toMutableMap()
+        if (!updated.containsKey(name)) {
+            updated[name] = emptySet()
+            _uiState.update { it.copy(groups = updated, isCreateGroupDialogVisible = false) }
+            viewModelScope.launch { repository.saveGroups(updated) }
+        }
+    }
+
+    fun deleteGroup(name: String) {
+        val updated = _uiState.value.groups.toMutableMap()
+        updated.remove(name)
+        val newSelected = if (_uiState.value.selectedGroup == name) null else _uiState.value.selectedGroup
+        _uiState.update {
+            it.copy(
+                groups = updated,
+                selectedGroup = newSelected,
+                filteredTracks = filterList(it.tracks, it.searchQuery, newSelected, updated)
+            )
+        }
+        viewModelScope.launch { repository.saveGroups(updated) }
+    }
+
+    fun addSelectedTracksToGroup(groupName: String) {
+        val updated = _uiState.value.groups.toMutableMap()
+        val currentTracks = updated[groupName]?.toMutableSet() ?: mutableSetOf()
+        currentTracks.addAll(_uiState.value.selectedTrackIds)
+        updated[groupName] = currentTracks
+        _uiState.update {
+            it.copy(
+                groups = updated,
+                selectedTrackIds = emptySet(),
+                isSelectionMode = false,
+                isAddToGroupDialogVisible = false,
+                filteredTracks = filterList(it.tracks, it.searchQuery, it.selectedGroup, updated)
+            )
+        }
+        viewModelScope.launch { repository.saveGroups(updated) }
+    }
+
+    fun setCreateGroupDialogVisible(visible: Boolean) {
+        _uiState.update { it.copy(isCreateGroupDialogVisible = visible) }
+    }
+
+    fun setAddToGroupDialogVisible(visible: Boolean) {
+        _uiState.update { it.copy(isAddToGroupDialogVisible = visible) }
     }
 
     fun importFiles(uris: List<Uri>) {
@@ -149,25 +225,65 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
 
     fun onSearchQueryChange(query: String) {
         _uiState.update {
-            it.copy(searchQuery = query, filteredTracks = filterList(it.tracks, query))
+            it.copy(
+                searchQuery = query,
+                filteredTracks = filterList(it.tracks, query, it.selectedGroup, it.groups)
+            )
         }
     }
 
-    private fun filterList(list: List<Track>, query: String): List<Track> {
-        if (query.isBlank()) return list
-        return list.filter {
+    private fun filterList(
+        list: List<Track>,
+        query: String,
+        group: String?,
+        groups: Map<String, Set<String>>
+    ): List<Track> {
+        val groupFiltered = if (group == null) {
+            list
+        } else {
+            val idsInGroup = groups[group] ?: emptySet()
+            list.filter { idsInGroup.contains(it.id) }
+        }
+
+        if (query.isBlank()) return groupFiltered
+        return groupFiltered.filter {
             it.title.contains(query, ignoreCase = true) || it.artist.contains(query, ignoreCase = true)
         }
     }
 
-    fun playTrack(track: Track, tracksQueue: List<Track> = _uiState.value.tracks) {
+    // Сохраняет обложку или аватарку во временный файл для экрана блокировки
+    private fun getCoverArtUri(track: Track): Uri {
+        val cacheFile = File(getApplication<Application>().cacheDir, "lockscreen_art_${track.id.hashCode()}.jpg")
+        if (!cacheFile.exists()) {
+            val bytes = track.artworkBytes ?: run {
+                // Если нет обложки — загружаем аватарку приложения
+                try {
+                    val resId = getApplication<Application>().resources.getIdentifier("app_icon", "drawable", getApplication<Application>().packageName)
+                    if (resId != 0) {
+                        val bitmap = BitmapFactory.decodeResource(getApplication<Application>().resources, resId)
+                        val out = java.io.ByteArrayOutputStream()
+                        bitmap.compress(Bitmap.CompressFormat.JPEG, 90, out)
+                        out.toByteArray()
+                    } else null
+                } catch (e: Exception) { null }
+            }
+            if (bytes != null) {
+                FileOutputStream(cacheFile).use { it.write(bytes) }
+            }
+        }
+        return Uri.fromFile(cacheFile)
+    }
+
+    fun playTrack(track: Track, tracksQueue: List<Track> = _uiState.value.filteredTracks) {
         val controller = mediaController ?: return
         val startIndex = tracksQueue.indexOf(track).coerceAtLeast(0)
         val mediaItems = tracksQueue.map { t ->
+            val artUri = getCoverArtUri(t)
             val metadataBuilder = MediaMetadata.Builder()
                 .setTitle(t.title)
                 .setArtist(t.artist)
                 .setAlbumTitle(t.album)
+                .setArtworkUri(artUri)
 
             t.artworkBytes?.let {
                 metadataBuilder.setArtworkData(it, MediaMetadata.PICTURE_TYPE_FRONT_COVER)
@@ -204,7 +320,6 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
         _uiState.update { it.copy(isFullScreenPlayerVisible = visible) }
     }
 
-    // Циклическое переключение зацикливания: Выкл -> Зациклить список -> Зациклить 1 трек
     fun cycleRepeatMode() {
         val controller = mediaController ?: return
         val nextMode = when (controller.repeatMode) {
@@ -220,7 +335,6 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
         controller.shuffleModeEnabled = !controller.shuffleModeEnabled
     }
 
-    // Удаление
     fun requestDeleteConfirmation(track: Track) {
         _uiState.update { it.copy(trackPendingDelete = track) }
     }
@@ -245,7 +359,7 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
             _uiState.update {
                 it.copy(
                     tracks = updatedTracks,
-                    filteredTracks = filterList(updatedTracks, it.searchQuery),
+                    filteredTracks = filterList(updatedTracks, it.searchQuery, it.selectedGroup, it.groups),
                     queue = it.queue.filter { q -> q.id != trackToDelete.id },
                     trackPendingDelete = null
                 )
@@ -253,7 +367,6 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
-    // Выделение
     fun toggleSelectTrack(trackId: String) {
         val currentSelected = _uiState.value.selectedTrackIds.toMutableSet()
         if (currentSelected.contains(trackId)) currentSelected.remove(trackId) else currentSelected.add(trackId)
@@ -296,7 +409,7 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
             _uiState.update {
                 it.copy(
                     tracks = remainingTracks,
-                    filteredTracks = filterList(remainingTracks, it.searchQuery),
+                    filteredTracks = filterList(remainingTracks, it.searchQuery, it.selectedGroup, it.groups),
                     queue = it.queue.filter { q -> !idsToDelete.contains(q.id) },
                     selectedTrackIds = emptySet(),
                     isSelectionMode = false,
