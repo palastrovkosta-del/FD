@@ -44,18 +44,6 @@ class PlaybackService : MediaSessionService() {
             PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
         )
 
-        val repeatCmd = CommandButton.Builder()
-            .setSessionCommand(SessionCommand(ACTION_CYCLE_REPEAT, Bundle.EMPTY))
-            .setDisplayName("Зациклить")
-            .setIconResId(R.drawable.ic_repeat)
-            .build()
-
-        val shuffleCmd = CommandButton.Builder()
-            .setSessionCommand(SessionCommand(ACTION_TOGGLE_SHUFFLE, Bundle.EMPTY))
-            .setDisplayName("Перемешать")
-            .setIconResId(R.drawable.ic_shuffle)
-            .build()
-
         val callback = object : MediaSession.Callback {
             override fun onConnect(
                 session: MediaSession,
@@ -69,12 +57,12 @@ class PlaybackService : MediaSessionService() {
                 return MediaSession.ConnectionResult.AcceptedResultBuilder(session)
                     .setAvailableSessionCommands(availableSessionCommands.build())
                     .setAvailablePlayerCommands(connectionResult.availablePlayerCommands)
-                    .setCustomLayout(listOf(shuffleCmd, repeatCmd))
+                    .setCustomLayout(buildButtons(exoPlayer))
                     .build()
             }
 
             override fun onPostConnect(session: MediaSession, controller: MediaSession.ControllerInfo) {
-                session.setCustomLayout(controller, listOf(shuffleCmd, repeatCmd))
+                session.setCustomLayout(controller, buildButtons(exoPlayer))
             }
 
             override fun onCustomCommand(
@@ -95,10 +83,19 @@ class PlaybackService : MediaSessionService() {
                         exoPlayer.shuffleModeEnabled = !exoPlayer.shuffleModeEnabled
                     }
                 }
-                session.setCustomLayout(listOf(shuffleCmd, repeatCmd))
+                updateButtons(session, exoPlayer)
                 return Futures.immediateFuture(SessionResult(SessionResult.RESULT_SUCCESS))
             }
         }
+
+        exoPlayer.addListener(object : Player.Listener {
+            override fun onRepeatModeChanged(repeatMode: Int) {
+                mediaSession?.let { updateButtons(it, exoPlayer) }
+            }
+            override fun onShuffleModeEnabledChanged(shuffleModeEnabled: Boolean) {
+                mediaSession?.let { updateButtons(it, exoPlayer) }
+            }
+        })
 
         mediaSession = MediaSession.Builder(this, exoPlayer)
             .setSessionActivity(sessionActivityIntent)
@@ -106,7 +103,35 @@ class PlaybackService : MediaSessionService() {
             .build()
     }
 
-    // При смахивании вкладки приложения — музыка полностью выключается и виджет исчезает
+    private fun buildButtons(player: ExoPlayer): List<CommandButton> {
+        val shuffleIcon = if (player.shuffleModeEnabled) R.drawable.ic_shuffle else R.drawable.ic_shuffle_off
+        val shuffleName = if (player.shuffleModeEnabled) "Перемешивание (ВКЛ)" else "Перемешивание (ВЫКЛ)"
+
+        val (repeatIcon, repeatName) = when (player.repeatMode) {
+            Player.REPEAT_MODE_ONE -> Pair(R.drawable.ic_repeat_one, "Повтор трека (1)")
+            Player.REPEAT_MODE_ALL -> Pair(R.drawable.ic_repeat, "Повтор списка (ВКЛ)")
+            else -> Pair(R.drawable.ic_repeat_off, "Повтор (ВЫКЛ)")
+        }
+
+        val shuffleCmd = CommandButton.Builder()
+            .setSessionCommand(SessionCommand(ACTION_TOGGLE_SHUFFLE, Bundle.EMPTY))
+            .setDisplayName(shuffleName)
+            .setIconResId(shuffleIcon)
+            .build()
+
+        val repeatCmd = CommandButton.Builder()
+            .setSessionCommand(SessionCommand(ACTION_CYCLE_REPEAT, Bundle.EMPTY))
+            .setDisplayName(repeatName)
+            .setIconResId(repeatIcon)
+            .build()
+
+        return listOf(shuffleCmd, repeatCmd)
+    }
+
+    private fun updateButtons(session: MediaSession, player: ExoPlayer) {
+        session.setCustomLayout(buildButtons(player))
+    }
+
     override fun onTaskRemoved(rootIntent: Intent?) {
         player?.let { p ->
             p.stop()
