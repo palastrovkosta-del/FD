@@ -5,25 +5,25 @@ import androidx.compose.material3.darkColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.graphics.Color
 
-private val NeonPurpleColorScheme = darkColorScheme(
-    primary = Color(0xFFA855F7),          // Яркий неоновый фиолетовый
+private val DusttaleColorScheme = darkColorScheme(
+    primary = Color(0xFFFF1744),          // Кроваво-красный (Determination)
     onPrimary = Color.White,
-    secondary = Color(0xFFC084FC),        // Светло-фиолетовый акцент
-    onSecondary = Color.Black,
-    background = Color(0xFF0F0B1E),       // Глубокий ночной фиолетовый фон
-    onBackground = Color(0xFFF3E8FF),     // Светлый текст
-    surface = Color(0xFF18122B),          // Цвет карточек
+    secondary = Color(0xFFA855F7),        // Фиолетовый глаз Санса
+    onSecondary = Color.White,
+    background = Color(0xFF08050E),       // Чернильно-черный фон
+    onBackground = Color(0xFFFEE2E2),     // Светло-алый текст
+    surface = Color(0xFF140A1E),          // Блоки треков
     onSurface = Color(0xFFFFFFFF),        // Кристально белый цвет названий
-    surfaceVariant = Color(0xFF261E43),   // Выделенные элементы
-    onSurfaceVariant = Color(0xFFD8B4FE), // Лавандовый вторичный текст
-    surfaceContainerHigh = Color(0xFF20173D),
-    error = Color(0xFFFF5252)
+    surfaceVariant = Color(0xFF241033),   // Акцентные плашки
+    onSurfaceVariant = Color(0xFFE2C4FF), // Лавандово-пепельный текст
+    surfaceContainerHigh = Color(0xFF1C0D2A),
+    error = Color(0xFFFF0033)
 )
 
 @Composable
 fun MusicBoxTheme(content: @Composable () -> Unit) {
     MaterialTheme(
-        colorScheme = NeonPurpleColorScheme,
+        colorScheme = DusttaleColorScheme,
         content = content
     )
 }
