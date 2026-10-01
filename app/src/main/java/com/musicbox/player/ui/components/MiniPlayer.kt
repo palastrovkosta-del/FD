@@ -10,8 +10,8 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Repeat
@@ -34,6 +34,8 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -48,10 +50,11 @@ fun MiniPlayer(
     durationMs: Long,
     repeatMode: Int,
     isShuffle: Boolean,
+    onCycleRepeat: () -> Unit,
+    onToggleShuffle: () -> Unit,
     onPlayPauseClick: () -> Unit,
     onPrevClick: () -> Unit,
     onNextClick: () -> Unit,
-    onMenuClick: () -> Unit,
     onSeekTo: (Long) -> Unit,
     onClick: () -> Unit
 ) {
@@ -66,24 +69,27 @@ fun MiniPlayer(
     }
 
     Surface(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 8.dp, vertical = 6.dp)
+            .clip(RoundedCornerShape(20.dp)),
         color = MaterialTheme.colorScheme.surfaceContainerHigh,
-        tonalElevation = 8.dp
+        tonalElevation = 10.dp
     ) {
-        Column(modifier = Modifier.padding(top = 4.dp, bottom = 4.dp)) {
-            // Верхняя часть: Название, Артист и Картинка
+        Column(modifier = Modifier.padding(horizontal = 14.dp, vertical = 8.dp)) {
+            // Верхняя часть: Название, Автор и Картинка
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .clickable(onClick = onClick)
-                    .padding(horizontal = 16.dp, vertical = 4.dp),
+                    .clickable(onClick = onClick),
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
                         track.title,
-                        style = MaterialTheme.typography.titleSmall,
+                        style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Bold,
+                        color = Color.White,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis
                     )
@@ -96,7 +102,7 @@ fun MiniPlayer(
                     )
                 }
                 Spacer(modifier = Modifier.width(12.dp))
-                TrackImage(bitmap = track.artworkBitmap, size = 42.dp, cornerRadius = 8.dp)
+                TrackImage(bitmap = track.artworkBitmap, size = 44.dp, cornerRadius = 10.dp)
             }
 
             // Ползунок перемотки
@@ -112,19 +118,17 @@ fun MiniPlayer(
                 },
                 colors = SliderDefaults.colors(
                     thumbColor = MaterialTheme.colorScheme.primary,
-                    activeTrackColor = MaterialTheme.colorScheme.primary
+                    activeTrackColor = MaterialTheme.colorScheme.primary,
+                    inactiveTrackColor = MaterialTheme.colorScheme.surfaceVariant
                 ),
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(20.dp)
-                    .padding(horizontal = 8.dp)
+                    .height(18.dp)
             )
 
-            // Нижняя строка: Таймер + Кнопки управления как в Telegram
+            // Нижняя строка: Таймер слева + Все кнопки управления + Таймер справа (БЕЗ 3 ТОЧЕК)
             Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 14.dp),
+                modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
@@ -135,41 +139,34 @@ fun MiniPlayer(
                 )
 
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    // Индикатор режима
-                    IconButton(onClick = onMenuClick) {
-                        val icon = when {
-                            repeatMode == Player.REPEAT_MODE_ONE -> Icons.Default.RepeatOne
-                            repeatMode == Player.REPEAT_MODE_ALL -> Icons.Default.Repeat
-                            isShuffle -> Icons.Default.Shuffle
-                            else -> Icons.Default.Repeat
-                        }
-                        val tint = if (repeatMode != Player.REPEAT_MODE_OFF || isShuffle) {
-                            MaterialTheme.colorScheme.primary
-                        } else {
-                            MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
-                        }
-                        Icon(icon, contentDescription = "Mode", tint = tint, modifier = Modifier.size(20.dp))
+                    // Кнопка Зацикливания (Цикл: Выкл -> Список -> 1 Трек)
+                    IconButton(onClick = onCycleRepeat) {
+                        val icon = if (repeatMode == Player.REPEAT_MODE_ONE) Icons.Default.RepeatOne else Icons.Default.Repeat
+                        val tint = if (repeatMode != Player.REPEAT_MODE_OFF) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f)
+                        Icon(icon, contentDescription = "Зациклить", tint = tint, modifier = Modifier.size(24.dp))
+                    }
+
+                    // Кнопка Случайный порядок (Shuffle)
+                    IconButton(onClick = onToggleShuffle) {
+                        val tint = if (isShuffle) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f)
+                        Icon(Icons.Default.Shuffle, contentDescription = "Перемешать", tint = tint, modifier = Modifier.size(24.dp))
                     }
 
                     IconButton(onClick = onPrevClick) {
-                        Icon(Icons.Default.SkipPrevious, contentDescription = "Previous", modifier = Modifier.size(28.dp))
+                        Icon(Icons.Default.SkipPrevious, contentDescription = "Назад", tint = Color.White, modifier = Modifier.size(28.dp))
                     }
 
                     IconButton(onClick = onPlayPauseClick) {
                         Icon(
                             if (isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
-                            contentDescription = "Play/Pause",
-                            modifier = Modifier.size(36.dp),
-                            tint = MaterialTheme.colorScheme.primary
+                            contentDescription = "Старт/Пауза",
+                            tint = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.size(38.dp)
                         )
                     }
 
                     IconButton(onClick = onNextClick) {
-                        Icon(Icons.Default.SkipNext, contentDescription = "Next", modifier = Modifier.size(28.dp))
-                    }
-
-                    IconButton(onClick = onMenuClick) {
-                        Icon(Icons.Default.MoreVert, contentDescription = "Menu", tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                        Icon(Icons.Default.SkipNext, contentDescription = "Вперед", tint = Color.White, modifier = Modifier.size(28.dp))
                     }
                 }
 
