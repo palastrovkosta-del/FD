@@ -1,6 +1,5 @@
 package com.musicbox.player.ui.components
 
-import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -73,11 +72,11 @@ fun MiniPlayer(
     Surface(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 8.dp, vertical = 6.dp)
-            .clip(RoundedCornerShape(16.dp))
-            .border(2.dp, Color(0xFFFF1744), RoundedCornerShape(16.dp)),
-        color = Color(0xF012071F),
-        tonalElevation = 12.dp
+            .padding(horizontal = 10.dp, vertical = 6.dp)
+            .clip(RoundedCornerShape(18.dp))
+            .border(2.dp, Color(0xFFFF8DA1), RoundedCornerShape(18.dp)),
+        color = Color(0xFFFFF9FB),
+        tonalElevation = 10.dp
     ) {
         Column(modifier = Modifier.padding(horizontal = 14.dp, vertical = 8.dp)) {
             Row(
@@ -88,23 +87,23 @@ fun MiniPlayer(
             ) {
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
-                        "${if (isPlaying) "❤️ " else "💜 "}${track.title}",
+                        track.title,
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Bold,
-                        color = Color.White,
+                        color = MaterialTheme.colorScheme.onSurface,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis
                     )
                     Text(
-                        "${track.artist}  [ HP 92/92 ]",
+                        track.artist,
                         style = MaterialTheme.typography.bodySmall,
-                        color = Color(0xFFFFA000), // HP стиль желтого цвета
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis
                     )
                 }
                 Spacer(modifier = Modifier.width(12.dp))
-                TrackImage(bitmap = track.artworkBitmap, size = 46.dp, cornerRadius = 8.dp)
+                TrackImage(bitmap = track.artworkBitmap, size = 44.dp, cornerRadius = 10.dp)
             }
 
             Slider(
@@ -118,9 +117,9 @@ fun MiniPlayer(
                     onSeekTo((dragProgress * safeDuration).toLong())
                 },
                 colors = SliderDefaults.colors(
-                    thumbColor = Color(0xFFFF1744),
-                    activeTrackColor = Color(0xFFFFEB3B), // Undertale HP Bar Yellow
-                    inactiveTrackColor = Color(0xFFC62828) // Undertale HP Bar Empty Red
+                    thumbColor = MaterialTheme.colorScheme.primary,
+                    activeTrackColor = MaterialTheme.colorScheme.primary,
+                    inactiveTrackColor = Color(0xFFFFD1DC)
                 ),
                 modifier = Modifier
                     .fillMaxWidth()
@@ -135,43 +134,43 @@ fun MiniPlayer(
                 Text(
                     formatDuration(if (isDraggingSlider) (dragProgress * safeDuration).toLong() else currentPositionMs),
                     style = MaterialTheme.typography.bodySmall,
-                    color = Color.White.copy(alpha = 0.7f)
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
 
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     IconButton(onClick = onCycleRepeat) {
                         val icon = if (repeatMode == Player.REPEAT_MODE_ONE) Icons.Default.RepeatOne else Icons.Default.Repeat
-                        val tint = if (repeatMode != Player.REPEAT_MODE_OFF) Color(0xFFFF1744) else Color.White.copy(alpha = 0.35f)
+                        val tint = if (repeatMode != Player.REPEAT_MODE_OFF) MaterialTheme.colorScheme.primary else Color(0xFFC49CAE)
                         Icon(icon, contentDescription = "Repeat", tint = tint, modifier = Modifier.size(24.dp))
                     }
 
                     IconButton(onClick = onToggleShuffle) {
-                        val tint = if (isShuffle) Color(0xFFA855F7) else Color.White.copy(alpha = 0.35f)
+                        val tint = if (isShuffle) MaterialTheme.colorScheme.primary else Color(0xFFC49CAE)
                         Icon(Icons.Default.Shuffle, contentDescription = "Shuffle", tint = tint, modifier = Modifier.size(24.dp))
                     }
 
                     IconButton(onClick = onPrevClick) {
-                        Icon(Icons.Default.SkipPrevious, contentDescription = "Prev", tint = Color.White, modifier = Modifier.size(28.dp))
+                        Icon(Icons.Default.SkipPrevious, contentDescription = "Prev", tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(28.dp))
                     }
 
                     IconButton(onClick = onPlayPauseClick) {
                         Icon(
                             if (isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
                             contentDescription = "Play/Pause",
-                            tint = Color(0xFFFF1744),
+                            tint = MaterialTheme.colorScheme.primary,
                             modifier = Modifier.size(38.dp)
                         )
                     }
 
                     IconButton(onClick = onNextClick) {
-                        Icon(Icons.Default.SkipNext, contentDescription = "Next", tint = Color.White, modifier = Modifier.size(28.dp))
+                        Icon(Icons.Default.SkipNext, contentDescription = "Next", tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(28.dp))
                     }
                 }
 
                 Text(
                     formatDuration(durationMs),
                     style = MaterialTheme.typography.bodySmall,
-                    color = Color.White.copy(alpha = 0.7f)
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
         }
