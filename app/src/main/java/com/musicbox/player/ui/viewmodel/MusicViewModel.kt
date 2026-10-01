@@ -39,7 +39,6 @@ data class PlayerUiState(
     val repeatMode: Int = Player.REPEAT_MODE_OFF,
     val searchQuery: String = "",
     val isFullScreenPlayerVisible: Boolean = false,
-    val isMenuBottomSheetVisible: Boolean = false,
     val trackPendingDelete: Track? = null,
     val isSelectionMode: Boolean = false,
     val selectedTrackIds: Set<String> = emptySet(),
@@ -79,7 +78,6 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
             }
 
             override fun onMediaItemTransition(mediaItem: MediaItem?, reason: Int) {
-                // Если повтор списка выключен и повтор трека выключен — останавливаемся после окончания песни
                 if (reason == Player.MEDIA_ITEM_TRANSITION_REASON_AUTO &&
                     _uiState.value.repeatMode == Player.REPEAT_MODE_OFF) {
                     mediaController?.pause()
@@ -194,45 +192,27 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
         if (controller.isPlaying) controller.pause() else controller.play()
     }
 
-    fun nextTrack() {
-        mediaController?.seekToNextMediaItem()
-    }
-
-    fun prevTrack() {
-        mediaController?.seekToPreviousMediaItem()
-    }
+    fun nextTrack() { mediaController?.seekToNextMediaItem() }
+    fun prevTrack() { mediaController?.seekToPreviousMediaItem() }
 
     fun seekTo(positionMs: Long) {
         mediaController?.seekTo(positionMs)
         _uiState.update { it.copy(currentPosition = positionMs) }
     }
 
-    fun stopAndCloseMiniPlayer() {
-        mediaController?.stop()
-        mediaController?.clearMediaItems()
-        _uiState.update {
-            it.copy(currentTrack = null, isPlaying = false, isFullScreenPlayerVisible = false)
-        }
-    }
-
     fun setFullScreenPlayerVisible(visible: Boolean) {
         _uiState.update { it.copy(isFullScreenPlayerVisible = visible) }
     }
 
-    fun setMenuBottomSheetVisible(visible: Boolean) {
-        _uiState.update { it.copy(isMenuBottomSheetVisible = visible) }
-    }
-
-    fun toggleRepeatOne() {
+    // Циклическое переключение зацикливания: Выкл -> Зациклить список -> Зациклить 1 трек
+    fun cycleRepeatMode() {
         val controller = mediaController ?: return
-        controller.repeatMode = if (controller.repeatMode == Player.REPEAT_MODE_ONE)
-            Player.REPEAT_MODE_OFF else Player.REPEAT_MODE_ONE
-    }
-
-    fun toggleRepeatAll() {
-        val controller = mediaController ?: return
-        controller.repeatMode = if (controller.repeatMode == Player.REPEAT_MODE_ALL)
-            Player.REPEAT_MODE_OFF else Player.REPEAT_MODE_ALL
+        val nextMode = when (controller.repeatMode) {
+            Player.REPEAT_MODE_OFF -> Player.REPEAT_MODE_ALL
+            Player.REPEAT_MODE_ALL -> Player.REPEAT_MODE_ONE
+            else -> Player.REPEAT_MODE_OFF
+        }
+        controller.repeatMode = nextMode
     }
 
     fun toggleShuffle() {
@@ -240,14 +220,7 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
         controller.shuffleModeEnabled = !controller.shuffleModeEnabled
     }
 
-    fun reverseQueue() {
-        val currentQueue = _uiState.value.queue.reversed()
-        val currentTrack = _uiState.value.currentTrack
-        _uiState.update { it.copy(queue = currentQueue) }
-        if (currentTrack != null) playTrack(currentTrack, currentQueue)
-    }
-
-    // Удаление одного трека (с остановкой плеера)
+    // Удаление
     fun requestDeleteConfirmation(track: Track) {
         _uiState.update { it.copy(trackPendingDelete = track) }
     }
@@ -280,19 +253,12 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
-    // Множественный выбор треков (Выделение / Удаление / Поделиться)
+    // Выделение
     fun toggleSelectTrack(trackId: String) {
         val currentSelected = _uiState.value.selectedTrackIds.toMutableSet()
-        if (currentSelected.contains(trackId)) {
-            currentSelected.remove(trackId)
-        } else {
-            currentSelected.add(trackId)
-        }
+        if (currentSelected.contains(trackId)) currentSelected.remove(trackId) else currentSelected.add(trackId)
         _uiState.update {
-            it.copy(
-                selectedTrackIds = currentSelected,
-                isSelectionMode = currentSelected.isNotEmpty()
-            )
+            it.copy(selectedTrackIds = currentSelected, isSelectionMode = currentSelected.isNotEmpty())
         }
     }
 
@@ -325,9 +291,7 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
 
         viewModelScope.launch {
             val tracksToDelete = _uiState.value.tracks.filter { idsToDelete.contains(it.id) }
-            for (track in tracksToDelete) {
-                repository.deleteTrack(track)
-            }
+            for (track in tracksToDelete) repository.deleteTrack(track)
             val remainingTracks = _uiState.value.tracks.filter { !idsToDelete.contains(it.id) }
             _uiState.update {
                 it.copy(
