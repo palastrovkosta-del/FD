@@ -6,8 +6,6 @@ import android.content.Context
 import android.content.Intent
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
-import android.graphics.Canvas
-import android.graphics.Rect
 import android.net.Uri
 import androidx.core.content.FileProvider
 import androidx.lifecycle.AndroidViewModel
@@ -52,7 +50,9 @@ data class PlayerUiState(
     val groups: Map<String, Set<String>> = emptyMap(),
     val selectedGroup: String? = null,
     val isCreateGroupDialogVisible: Boolean = false,
-    val isAddToGroupDialogVisible: Boolean = false
+    val isAddToGroupDialogVisible: Boolean = false,
+    val isClassDialogVisible: Boolean = false,
+    val isImporting: Boolean = false // Прогресс импорта 4 ГБ
 )
 
 class MusicViewModel(application: Application) : AndroidViewModel(application) {
@@ -211,6 +211,23 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
         viewModelScope.launch { repository.saveGroups(updated) }
     }
 
+    // Перенос текущего играющего трека в группу по кнопке "Class"
+    fun moveCurrentTrackToGroup(groupName: String) {
+        val track = _uiState.value.currentTrack ?: return
+        val updated = _uiState.value.groups.toMutableMap()
+        val currentTracks = updated[groupName]?.toMutableSet() ?: mutableSetOf()
+        currentTracks.add(track.id)
+        updated[groupName] = currentTracks
+        _uiState.update {
+            it.copy(
+                groups = updated,
+                isClassDialogVisible = false,
+                filteredTracks = filterList(it.tracks, it.searchQuery, it.selectedGroup, updated)
+            )
+        }
+        viewModelScope.launch { repository.saveGroups(updated) }
+    }
+
     fun setCreateGroupDialogVisible(visible: Boolean) {
         _uiState.update { it.copy(isCreateGroupDialogVisible = visible) }
     }
@@ -219,8 +236,14 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
         _uiState.update { it.copy(isAddToGroupDialogVisible = visible) }
     }
 
+    fun setClassDialogVisible(visible: Boolean) {
+        _uiState.update { it.copy(isClassDialogVisible = visible) }
+    }
+
+    // Надёжный импорт сотен файлов
     fun importFiles(uris: List<Uri>) {
         val targetGroup = _uiState.value.selectedGroup
+        _uiState.update { it.copy(isImporting = true) }
         viewModelScope.launch {
             val newTrackIds = repository.importFiles(uris)
             if (targetGroup != null && newTrackIds.isNotEmpty()) {
@@ -232,6 +255,7 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
                 _uiState.update { it.copy(groups = updated) }
             }
             loadTracks()
+            _uiState.update { it.copy(isImporting = false) }
         }
     }
 
@@ -267,12 +291,10 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
         if (_uiState.value.currentTrack?.id == track.id) {
             togglePlayPause()
         } else {
-            // Играет ТОЛЬКО список текущей выбранной группы!
             playTrack(track, _uiState.value.filteredTracks)
         }
     }
 
-    // Подготовка крупного Санса (с обрезкой полей) для экрана блокировки
     private fun getArtworkUri(track: Track): Uri? {
         val cacheFile = File(getApplication<Application>().cacheDir, "lock_art_${track.id.hashCode()}.jpg")
         if (!cacheFile.exists()) {
@@ -283,7 +305,6 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
                     )
                     if (resId != 0) {
                         val original = BitmapFactory.decodeResource(getApplication<Application>().resources, resId)
-                        // Кропаем и центрируем картинку, чтобы Санс был крупным!
                         val cropSize = (original.width * 0.78f).toInt()
                         val startX = (original.width - cropSize) / 2
                         val startY = (original.height - cropSize) / 2
@@ -336,12 +357,8 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
                 .setArtist(t.artist)
                 .setAlbumTitle(t.album)
 
-            if (artUri != null) {
-                metadataBuilder.setArtworkUri(artUri)
-            }
-            if (artBytes != null) {
-                metadataBuilder.setArtworkData(artBytes, MediaMetadata.PICTURE_TYPE_FRONT_COVER)
-            }
+            if (artUri != null) metadataBuilder.setArtworkUri(artUri)
+            if (artBytes != null) metadataBuilder.setArtworkData(artBytes, MediaMetadata.PICTURE_TYPE_FRONT_COVER)
 
             MediaItem.Builder()
                 .setMediaId(t.id)
@@ -349,7 +366,6 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
                 .setMediaMetadata(metadataBuilder.build())
                 .build()
         }
-        // Загружаем в ExoPlayer ТОЛЬКО треки текущей группы!
         controller.setMediaItems(mediaItems, startIndex, 0L)
         controller.prepare()
         controller.play()
