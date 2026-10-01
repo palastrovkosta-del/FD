@@ -19,11 +19,11 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.Class
 import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Repeat
 import androidx.compose.material.icons.filled.RepeatOne
+import androidx.compose.material.icons.filled.School
 import androidx.compose.material.icons.filled.Shuffle
 import androidx.compose.material.icons.filled.SkipNext
 import androidx.compose.material.icons.filled.SkipPrevious
@@ -68,7 +68,7 @@ fun FullScreenPlayer(
     onNextClick: () -> Unit,
     onPrevClick: () -> Unit,
     onSeekTo: (Long) -> Unit,
-    onClassClick: () -> Unit // Кнопка Class для переноса в группу
+    onClassClick: () -> Unit
 ) {
     var isDraggingSlider by remember { mutableStateOf(false) }
     var sliderDragValue by remember { mutableFloatStateOf(0f) }
@@ -149,7 +149,6 @@ fun FullScreenPlayer(
             modifier = Modifier.fillMaxWidth()
         )
 
-        // Строка таймера с кнопкой CLASS
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceBetween,
@@ -158,7 +157,6 @@ fun FullScreenPlayer(
             val displayedCurrentTime = if (isDraggingSlider) (sliderDragValue * safeDuration).toLong() else currentPositionMs
             Text(formatDuration(displayedCurrentTime), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
 
-            // Кнопка перевода трека в группу (Class)
             Surface(
                 shape = RoundedCornerShape(12.dp),
                 color = MaterialTheme.colorScheme.primary,
@@ -171,7 +169,7 @@ fun FullScreenPlayer(
                     verticalAlignment = Alignment.CenterVertically,
                     modifier = Modifier.padding(horizontal = 14.dp, vertical = 6.dp)
                 ) {
-                    Icon(Icons.Default.Class, contentDescription = null, tint = Color.White, modifier = Modifier.size(16.dp))
+                    Icon(Icons.Default.School, contentDescription = null, tint = Color.White, modifier = Modifier.size(16.dp))
                     Spacer(modifier = Modifier.width(6.dp))
                     Text("Class", color = Color.White, fontWeight = FontWeight.Bold)
                 }
