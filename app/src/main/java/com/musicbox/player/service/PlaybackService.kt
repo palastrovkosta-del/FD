@@ -15,7 +15,6 @@ import androidx.media3.session.SessionResult
 import com.google.common.util.concurrent.Futures
 import com.google.common.util.concurrent.ListenableFuture
 import com.musicbox.player.MainActivity
-import com.musicbox.player.R
 
 class PlaybackService : MediaSessionService() {
     private var player: ExoPlayer? = null
@@ -104,13 +103,17 @@ class PlaybackService : MediaSessionService() {
     }
 
     private fun buildButtons(player: ExoPlayer): List<CommandButton> {
-        val shuffleIcon = if (player.shuffleModeEnabled) R.drawable.ic_shuffle else R.drawable.ic_shuffle_off
+        val shuffleIcon = if (player.shuffleModeEnabled) {
+            android.R.drawable.ic_menu_directions
+        } else {
+            android.R.drawable.ic_menu_send
+        }
         val shuffleName = if (player.shuffleModeEnabled) "Перемешивание (ВКЛ)" else "Перемешивание (ВЫКЛ)"
 
         val (repeatIcon, repeatName) = when (player.repeatMode) {
-            Player.REPEAT_MODE_ONE -> Pair(R.drawable.ic_repeat_one, "Повтор трека (1)")
-            Player.REPEAT_MODE_ALL -> Pair(R.drawable.ic_repeat, "Повтор списка (ВКЛ)")
-            else -> Pair(R.drawable.ic_repeat_off, "Повтор (ВЫКЛ)")
+            Player.REPEAT_MODE_ONE -> Pair(android.R.drawable.ic_menu_revert, "Повтор трека (1)")
+            Player.REPEAT_MODE_ALL -> Pair(android.R.drawable.ic_menu_rotate, "Повтор списка (ВКЛ)")
+            else -> Pair(android.R.drawable.ic_menu_close_clear_cancel, "Повтор (ВЫКЛ)")
         }
 
         val shuffleCmd = CommandButton.Builder()
@@ -132,6 +135,7 @@ class PlaybackService : MediaSessionService() {
         session.setCustomLayout(buildButtons(player))
     }
 
+    // При смахивании вкладки — музыка полностью выключается и виджет с экрана блокировки убирается!
     override fun onTaskRemoved(rootIntent: Intent?) {
         player?.let { p ->
             p.stop()
