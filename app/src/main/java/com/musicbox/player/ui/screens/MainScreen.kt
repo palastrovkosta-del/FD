@@ -66,10 +66,15 @@ import com.musicbox.player.ui.viewmodel.MusicViewModel
 
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
-fun MainScreen(viewModel: MusicViewModel) {
+fun MainScreen(
+    viewModel: MusicViewModel,
+    shouldShowSplash: Boolean,
+    onSplashDone: () -> Unit,
+    onMinimize: () -> Unit
+) {
     val uiState by viewModel.uiState.collectAsState()
     val context = LocalContext.current
-    var isSplashActive by remember { mutableStateOf(true) }
+    var isSplashVisible by remember { mutableStateOf(shouldShowSplash) }
 
     var newGroupName by remember { mutableStateOf("") }
     var groupToDelete by remember { mutableStateOf<String?>(null) }
@@ -80,8 +85,14 @@ fun MainScreen(viewModel: MusicViewModel) {
         if (uris.isNotEmpty()) viewModel.importFiles(uris)
     }
 
-    BackHandler(enabled = uiState.isSelectionMode) {
-        viewModel.clearSelection()
+    BackHandler {
+        if (uiState.isSelectionMode) {
+            viewModel.clearSelection()
+        } else if (uiState.isFullScreenPlayerVisible) {
+            viewModel.setFullScreenPlayerVisible(false)
+        } else {
+            onMinimize()
+        }
     }
 
     Box(modifier = Modifier.fillMaxSize()) {
@@ -113,7 +124,6 @@ fun MainScreen(viewModel: MusicViewModel) {
                         IconButton(onClick = { viewModel.selectAll() }) {
                             Icon(Icons.Default.DoneAll, contentDescription = "Выбрать все", tint = Color.White)
                         }
-                        // Добавить в подгруппу
                         IconButton(onClick = { viewModel.setAddToGroupDialogVisible(true) }) {
                             Icon(Icons.Default.Folder, contentDescription = "В группу", tint = MaterialTheme.colorScheme.primary)
                         }
@@ -189,7 +199,7 @@ fun MainScreen(viewModel: MusicViewModel) {
                         shape = RoundedCornerShape(24.dp)
                     )
 
-                    // Горизонтальный список подгрупп с кнопкой ALL
+                    // Горизонтальный список групп
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -197,7 +207,6 @@ fun MainScreen(viewModel: MusicViewModel) {
                             .padding(horizontal = 16.dp, vertical = 6.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        // Кнопка ALL (Все треки)
                         val isAllSelected = uiState.selectedGroup == null
                         Surface(
                             shape = RoundedCornerShape(16.dp),
@@ -216,7 +225,6 @@ fun MainScreen(viewModel: MusicViewModel) {
 
                         Spacer(modifier = Modifier.width(8.dp))
 
-                        // Кнопка "+ Группа"
                         Surface(
                             shape = RoundedCornerShape(16.dp),
                             color = MaterialTheme.colorScheme.surfaceVariant,
@@ -236,7 +244,6 @@ fun MainScreen(viewModel: MusicViewModel) {
 
                         Spacer(modifier = Modifier.width(8.dp))
 
-                        // Список групп
                         uiState.groups.keys.forEach { groupName ->
                             val isGroupSelected = uiState.selectedGroup == groupName
                             Surface(
@@ -296,7 +303,7 @@ fun MainScreen(viewModel: MusicViewModel) {
                                 isSelectionMode = uiState.isSelectionMode,
                                 isSelected = isSelected,
                                 onSelectToggle = { viewModel.toggleSelectTrack(track.id) },
-                                onClick = { viewModel.playTrack(track) },
+                                onClick = { viewModel.onTrackItemClick(track) },
                                 onDeleteClick = { viewModel.requestDeleteConfirmation(track) }
                             )
                         }
@@ -306,14 +313,18 @@ fun MainScreen(viewModel: MusicViewModel) {
             }
         }
 
-        // Вертикальный вступительный ролик при холодном запуске
-        SplashScreen(
-            isVisible = isSplashActive,
-            onSplashFinished = { isSplashActive = false }
-        )
+        // Вступительный ролик (ТОЛЬКО при холодном старте)
+        if (isSplashVisible) {
+            SplashScreen(
+                isVisible = isSplashVisible,
+                onSplashFinished = {
+                    isSplashVisible = false
+                    onSplashDone()
+                }
+            )
+        }
     }
 
-    // Диалог создания группы
     if (uiState.isCreateGroupDialogVisible) {
         AlertDialog(
             onDismissRequest = { viewModel.setCreateGroupDialogVisible(false) },
@@ -322,7 +333,7 @@ fun MainScreen(viewModel: MusicViewModel) {
                 OutlinedTextField(
                     value = newGroupName,
                     onValueChange = { newGroupName = it },
-                    placeholder = { Text("Название группы (например, Фонк)") },
+                    placeholder = { Text("Название группы (например, Санс)") },
                     singleLine = true
                 )
             },
@@ -338,12 +349,11 @@ fun MainScreen(viewModel: MusicViewModel) {
         )
     }
 
-    // Диалог удаления группы
     groupToDelete?.let { gName ->
         AlertDialog(
             onDismissRequest = { groupToDelete = null },
             title = { Text("Удалить группу «$gName»?") },
-            text = { Text("Сами песни с телефона не удалятся, только группировка.") },
+            text = { Text("Песни из группы останутся во вкладке ALL.") },
             confirmButton = {
                 TextButton(onClick = {
                     viewModel.deleteGroup(gName)
@@ -356,7 +366,6 @@ fun MainScreen(viewModel: MusicViewModel) {
         )
     }
 
-    // Диалог добавления выделенных треков в группу
     if (uiState.isAddToGroupDialogVisible) {
         AlertDialog(
             onDismissRequest = { viewModel.setAddToGroupDialogVisible(false) },
@@ -384,7 +393,6 @@ fun MainScreen(viewModel: MusicViewModel) {
         )
     }
 
-    // Диалог удаления 1 трека
     uiState.trackPendingDelete?.let { track ->
         AlertDialog(
             onDismissRequest = { viewModel.dismissDeleteDialog() },
@@ -403,7 +411,6 @@ fun MainScreen(viewModel: MusicViewModel) {
         )
     }
 
-    // Диалог массового удаления
     if (uiState.isBatchDeleteConfirmVisible) {
         AlertDialog(
             onDismissRequest = { viewModel.dismissBatchDeleteDialog() },
@@ -422,7 +429,6 @@ fun MainScreen(viewModel: MusicViewModel) {
         )
     }
 
-    // Полноэкранный плеер
     AnimatedVisibility(
         visible = uiState.isFullScreenPlayerVisible && uiState.currentTrack != null,
         enter = slideInVertically(initialOffsetY = { it }),
