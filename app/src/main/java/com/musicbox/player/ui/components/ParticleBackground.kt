@@ -16,37 +16,39 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import kotlin.random.Random
 
-private data class Particle(
+private data class DustParticle(
     val initialX: Float,
     val initialY: Float,
     val radius: Float,
     val speed: Float,
+    val isRed: Boolean,
     val alpha: Float
 )
 
 @Composable
 fun ParticleBackground(modifier: Modifier = Modifier) {
     val particles = remember {
-        List(25) {
-            Particle(
+        List(30) {
+            DustParticle(
                 initialX = Random.nextFloat(),
                 initialY = Random.nextFloat(),
-                radius = Random.nextFloat() * 4f + 2f,
-                speed = Random.nextFloat() * 0.4f + 0.2f,
-                alpha = Random.nextFloat() * 0.35f + 0.15f
+                radius = Random.nextFloat() * 3.5f + 1.5f,
+                speed = Random.nextFloat() * 0.5f + 0.2f,
+                isRed = Random.nextBoolean(),
+                alpha = Random.nextFloat() * 0.45f + 0.15f
             )
         }
     }
 
-    val transition = rememberInfiniteTransition(label = "particles")
+    val transition = rememberInfiniteTransition(label = "dust")
     val progress by transition.animateFloat(
         initialValue = 0f,
         targetValue = 1f,
         animationSpec = infiniteRepeatable(
-            animation = tween(durationMillis = 10000, easing = LinearEasing),
+            animation = tween(durationMillis = 9000, easing = LinearEasing),
             repeatMode = RepeatMode.Restart
         ),
-        label = "particleProgress"
+        label = "dustProgress"
     )
 
     Canvas(modifier = modifier.fillMaxSize()) {
@@ -56,9 +58,10 @@ fun ParticleBackground(modifier: Modifier = Modifier) {
         for (p in particles) {
             val currentY = (p.initialY - progress * p.speed).let { if (it < 0f) it + 1f else it } * height
             val currentX = p.initialX * width
+            val particleColor = if (p.isRed) Color(0xFFFF1744) else Color(0xFFA855F7)
 
             drawCircle(
-                color = Color(0xFFA855F7).copy(alpha = p.alpha),
+                color = particleColor.copy(alpha = p.alpha),
                 radius = p.radius,
                 center = Offset(currentX, currentY)
             )
