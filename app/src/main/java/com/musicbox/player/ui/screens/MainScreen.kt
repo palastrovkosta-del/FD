@@ -38,11 +38,11 @@ import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -61,9 +61,9 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import com.musicbox.player.ui.components.DdlcBackground
 import com.musicbox.player.ui.components.FullScreenPlayer
 import com.musicbox.player.ui.components.MiniPlayer
-import com.musicbox.player.ui.components.ParticleBackground
 import com.musicbox.player.ui.components.TrackItem
 import com.musicbox.player.ui.viewmodel.MusicViewModel
 
@@ -99,7 +99,8 @@ fun MainScreen(
     }
 
     Box(modifier = Modifier.fillMaxSize()) {
-        ParticleBackground()
+        // Точный фон DDLC (белый с розовым горошком)
+        DdlcBackground()
 
         Scaffold(
             containerColor = Color.Transparent,
@@ -108,51 +109,63 @@ fun MainScreen(
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .background(MaterialTheme.colorScheme.surfaceVariant)
+                            .background(Color(0xFFFF9BB2))
+                            .border(2.dp, Color.Black)
                             .padding(horizontal = 8.dp, vertical = 6.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         IconButton(onClick = { viewModel.clearSelection() }) {
-                            Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Отмена", tint = MaterialTheme.colorScheme.primary)
+                            Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Отмена", tint = Color.White)
                         }
                         Text(
                             "Выбрано: ${uiState.selectedTrackIds.size}",
                             style = MaterialTheme.typography.titleMedium,
                             fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.colorScheme.onSurface,
+                            color = Color.White,
                             modifier = Modifier
                                 .weight(1f)
                                 .padding(start = 8.dp)
                         )
                         IconButton(onClick = { viewModel.selectAll() }) {
-                            Icon(Icons.Default.DoneAll, contentDescription = "Выбрать все", tint = MaterialTheme.colorScheme.primary)
+                            Icon(Icons.Default.DoneAll, contentDescription = "Все", tint = Color.White)
                         }
                         IconButton(onClick = { viewModel.setAddToGroupDialogVisible(true) }) {
-                            Icon(Icons.Default.Folder, contentDescription = "В группу", tint = MaterialTheme.colorScheme.primary)
+                            Icon(Icons.Default.Folder, contentDescription = "В группу", tint = Color.White)
                         }
                         IconButton(onClick = { viewModel.shareSelectedTracks(context) }) {
-                            Icon(Icons.Default.Share, contentDescription = "Поделиться", tint = MaterialTheme.colorScheme.primary)
+                            Icon(Icons.Default.Share, contentDescription = "Поделиться", tint = Color.White)
                         }
                         IconButton(onClick = { viewModel.requestBatchDeleteConfirmation() }) {
-                            Icon(Icons.Default.Delete, contentDescription = "Удалить", tint = MaterialTheme.colorScheme.error)
+                            Icon(Icons.Default.Delete, contentDescription = "Удалить", tint = Color(0xFFD32F2F))
                         }
                     }
                 }
             },
+            // ТОЧНАЯ КНОПКА С ТВОЕГО ФОТО: Квадрат со скруглением, толстая черная рамка 3dp, розовый цвет
             floatingActionButton = {
                 if (!uiState.isSelectionMode) {
-                    FloatingActionButton(
-                        onClick = {
-                            filePickerLauncher.launch(
-                                arrayOf(
-                                    "audio/*", "application/ogg", "audio/mpeg", "audio/flac", "audio/mp4", "audio/x-m4a"
-                                )
-                            )
-                        },
-                        containerColor = MaterialTheme.colorScheme.primary,
-                        contentColor = Color.White
+                    Box(
+                        modifier = Modifier
+                            .padding(bottom = 12.dp, end = 4.dp)
+                            .size(68.dp)
+                            .clip(RoundedCornerShape(20.dp))
+                            .border(3.dp, Color.Black, RoundedCornerShape(20.dp))
+                            .background(Color(0xFFFF9BB2))
+                            .combinedClickable(
+                                onClick = {
+                                    filePickerLauncher.launch(
+                                        arrayOf("audio/*", "application/ogg", "*/*")
+                                    )
+                                }
+                            ),
+                        contentAlignment = Alignment.Center
                     ) {
-                        Icon(Icons.Default.Add, contentDescription = "Добавить музыку")
+                        Icon(
+                            Icons.Default.Add,
+                            contentDescription = "Добавить музыку",
+                            tint = Color(0xFFFF5277),
+                            modifier = Modifier.size(46.dp)
+                        )
                     }
                 }
             },
@@ -187,41 +200,47 @@ fun MainScreen(
                         onValueChange = { viewModel.onSearchQueryChange(it) },
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(horizontal = 16.dp, vertical = 6.dp),
-                        placeholder = { Text("Поиск трека...", color = MaterialTheme.colorScheme.onSurfaceVariant) },
-                        leadingIcon = { Icon(Icons.Default.Search, contentDescription = null, tint = MaterialTheme.colorScheme.primary) },
+                            .padding(horizontal = 14.dp, vertical = 6.dp),
+                        placeholder = { Text("Поиск трека...", color = Color(0xFF8A5368)) },
+                        leadingIcon = { Icon(Icons.Default.Search, contentDescription = null, tint = Color(0xFFFF5B84)) },
                         trailingIcon = {
                             if (uiState.searchQuery.isNotEmpty()) {
                                 IconButton(onClick = { viewModel.onSearchQueryChange("") }) {
-                                    Icon(Icons.Default.Clear, contentDescription = "Очистить", tint = MaterialTheme.colorScheme.primary)
+                                    Icon(Icons.Default.Clear, contentDescription = "Очистить", tint = Color(0xFFFF5B84))
                                 }
                             }
                         },
                         singleLine = true,
-                        shape = RoundedCornerShape(24.dp)
+                        shape = RoundedCornerShape(20.dp),
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedContainerColor = Color.White,
+                            unfocusedContainerColor = Color.White,
+                            focusedBorderColor = Color.Black,
+                            unfocusedBorderColor = Color.Black
+                        )
                     )
 
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
                             .horizontalScroll(rememberScrollState())
-                            .padding(horizontal = 16.dp, vertical = 6.dp),
+                            .padding(horizontal = 14.dp, vertical = 4.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         val isAllSelected = uiState.selectedGroup == null
                         Surface(
                             shape = RoundedCornerShape(16.dp),
-                            color = if (isAllSelected) MaterialTheme.colorScheme.primary else Color.White,
+                            color = if (isAllSelected) Color(0xFFFF5B84) else Color.White,
                             modifier = Modifier
                                 .clip(RoundedCornerShape(16.dp))
-                                .border(1.5.dp, MaterialTheme.colorScheme.outline, RoundedCornerShape(16.dp))
+                                .border(2.dp, Color.Black, RoundedCornerShape(16.dp))
                                 .combinedClickable(onClick = { viewModel.selectGroup(null) })
                         ) {
                             Text(
                                 "ALL",
-                                color = if (isAllSelected) Color.White else MaterialTheme.colorScheme.onSurface,
+                                color = if (isAllSelected) Color.White else Color.Black,
                                 fontWeight = FontWeight.Bold,
-                                modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
+                                modifier = Modifier.padding(horizontal = 18.dp, vertical = 8.dp)
                             )
                         }
 
@@ -232,16 +251,16 @@ fun MainScreen(
                             color = Color.White,
                             modifier = Modifier
                                 .clip(RoundedCornerShape(16.dp))
-                                .border(1.5.dp, MaterialTheme.colorScheme.outline, RoundedCornerShape(16.dp))
+                                .border(2.dp, Color.Black, RoundedCornerShape(16.dp))
                                 .combinedClickable(onClick = { viewModel.setCreateGroupDialogVisible(true) })
                         ) {
                             Row(
                                 verticalAlignment = Alignment.CenterVertically,
-                                modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp)
+                                modifier = Modifier.padding(horizontal = 14.dp, vertical = 8.dp)
                             ) {
-                                Icon(Icons.Default.CreateNewFolder, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.height(18.dp))
+                                Icon(Icons.Default.CreateNewFolder, contentDescription = null, tint = Color(0xFFFF5B84), modifier = Modifier.height(18.dp))
                                 Spacer(modifier = Modifier.width(4.dp))
-                                Text("+ Группа", color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.SemiBold)
+                                Text("+ Группа", color = Color.Black, fontWeight = FontWeight.Bold)
                             }
                         }
 
@@ -251,11 +270,11 @@ fun MainScreen(
                             val isGroupSelected = uiState.selectedGroup == groupName
                             Surface(
                                 shape = RoundedCornerShape(16.dp),
-                                color = if (isGroupSelected) MaterialTheme.colorScheme.primary else Color.White,
+                                color = if (isGroupSelected) Color(0xFFFF5B84) else Color.White,
                                 modifier = Modifier
                                     .padding(end = 8.dp)
                                     .clip(RoundedCornerShape(16.dp))
-                                    .border(1.5.dp, MaterialTheme.colorScheme.outline, RoundedCornerShape(16.dp))
+                                    .border(2.dp, Color.Black, RoundedCornerShape(16.dp))
                                     .combinedClickable(
                                         onClick = { viewModel.selectGroup(groupName) },
                                         onLongClick = { groupToDelete = groupName }
@@ -263,9 +282,9 @@ fun MainScreen(
                             ) {
                                 Text(
                                     groupName,
-                                    color = if (isGroupSelected) Color.White else MaterialTheme.colorScheme.onSurface,
-                                    fontWeight = FontWeight.Medium,
-                                    modifier = Modifier.padding(horizontal = 14.dp, vertical = 8.dp)
+                                    color = if (isGroupSelected) Color.White else Color.Black,
+                                    fontWeight = FontWeight.Bold,
+                                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
                                 )
                             }
                         }
@@ -284,15 +303,16 @@ fun MainScreen(
                                 Icons.Default.MusicNote,
                                 contentDescription = null,
                                 modifier = Modifier.padding(bottom = 16.dp),
-                                tint = MaterialTheme.colorScheme.primary.copy(alpha = 0.6f)
+                                tint = Color(0xFFFF5B84)
                             )
                             Text(
                                 text = if (uiState.tracks.isEmpty())
-                                    "Нет треков\nНажмите +, чтобы добавить аудиофайлы"
-                                else "В этой группе пока нет треков",
+                                    "В клубе пока нет песен...\nНажми розовый +, чтобы добавить файлы!"
+                                else "В этом классе пока нет песен",
                                 textAlign = TextAlign.Center,
-                                style = MaterialTheme.typography.bodyLarge,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.Bold,
+                                color = Color(0xFF4A1525)
                             )
                         }
                     }
@@ -311,32 +331,39 @@ fun MainScreen(
                                 onDeleteClick = { viewModel.requestDeleteConfirmation(track) }
                             )
                         }
-                        item { Spacer(modifier = Modifier.height(88.dp)) }
+                        item { Spacer(modifier = Modifier.height(100.dp)) }
                     }
                 }
             }
         }
 
-        // Индикатор добавления больших папок (4 ГБ)
+        // Окно прогресса загрузки сотен песен (4 ГБ)
         if (uiState.isImporting) {
             Box(
                 modifier = Modifier
                     .fillMaxSize()
-                    .background(Color.Black.copy(alpha = 0.5f)),
+                    .background(Color.Black.copy(alpha = 0.6f)),
                 contentAlignment = Alignment.Center
             ) {
                 Surface(
-                    shape = RoundedCornerShape(16.dp),
+                    shape = RoundedCornerShape(20.dp),
                     color = Color.White,
-                    modifier = Modifier.padding(32.dp)
+                    modifier = Modifier
+                        .padding(32.dp)
+                        .border(3.dp, Color.Black, RoundedCornerShape(20.dp))
                 ) {
                     Column(
-                        modifier = Modifier.padding(24.dp),
+                        modifier = Modifier.padding(28.dp),
                         horizontalAlignment = Alignment.CenterHorizontally
                     ) {
-                        CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
+                        CircularProgressIndicator(color = Color(0xFFFF5B84))
                         Spacer(modifier = Modifier.height(16.dp))
-                        Text("Добавляем песни... Пожалуйста, подождите", fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurface)
+                        Text(
+                            uiState.importProgressText.ifBlank { "Добавляем песни в клуб..." },
+                            fontWeight = FontWeight.Bold,
+                            color = Color(0xFF2C1620),
+                            textAlign = TextAlign.Center
+                        )
                     }
                 }
             }
@@ -354,14 +381,14 @@ fun MainScreen(
         }
     }
 
-    // Диалог кнопки "Class" (выбор группы для текущего трека)
+    // Диалог Class: перенос трека в группу
     if (uiState.isClassDialogVisible) {
         AlertDialog(
             onDismissRequest = { viewModel.setClassDialogVisible(false) },
-            title = { Text("Перенести трек в класс/группу", color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold) },
+            title = { Text("Перенести трек в класс", color = Color(0xFFFF5B84), fontWeight = FontWeight.Bold) },
             text = {
                 if (uiState.groups.isEmpty()) {
-                    Text("Сначала создайте хотя бы одну группу (например, DDLC) через «+ Группа»!")
+                    Text("Сначала создайте хотя бы одну группу через «+ Группа»!")
                 } else {
                     Column {
                         uiState.groups.keys.forEach { g ->
@@ -369,7 +396,7 @@ fun MainScreen(
                                 onClick = { viewModel.moveCurrentTrackToGroup(g) },
                                 modifier = Modifier.fillMaxWidth()
                             ) {
-                                Text("🌸 $g", textAlign = TextAlign.Start, modifier = Modifier.fillMaxWidth(), fontWeight = FontWeight.Bold)
+                                Text("🌸 $g", textAlign = TextAlign.Start, modifier = Modifier.fillMaxWidth(), fontWeight = FontWeight.Bold, color = Color(0xFF2C1620))
                             }
                         }
                     }
@@ -385,7 +412,7 @@ fun MainScreen(
     if (uiState.isCreateGroupDialogVisible) {
         AlertDialog(
             onDismissRequest = { viewModel.setCreateGroupDialogVisible(false) },
-            title = { Text("Новая группа", color = MaterialTheme.colorScheme.primary) },
+            title = { Text("Новый класс / группа", color = Color(0xFFFF5B84), fontWeight = FontWeight.Bold) },
             text = {
                 OutlinedTextField(
                     value = newGroupName,
@@ -398,7 +425,7 @@ fun MainScreen(
                 TextButton(onClick = {
                     viewModel.createGroup(newGroupName)
                     newGroupName = ""
-                }) { Text("Создать") }
+                }) { Text("Создать", fontWeight = FontWeight.Bold) }
             },
             dismissButton = {
                 TextButton(onClick = { viewModel.setCreateGroupDialogVisible(false) }) { Text("Отмена") }
@@ -426,7 +453,7 @@ fun MainScreen(
     if (uiState.isAddToGroupDialogVisible) {
         AlertDialog(
             onDismissRequest = { viewModel.setAddToGroupDialogVisible(false) },
-            title = { Text("Добавить в группу", color = MaterialTheme.colorScheme.primary) },
+            title = { Text("Добавить в класс", color = Color(0xFFFF5B84), fontWeight = FontWeight.Bold) },
             text = {
                 if (uiState.groups.isEmpty()) {
                     Text("Сначала создайте хотя бы одну группу через «+ Группа»")
@@ -437,7 +464,7 @@ fun MainScreen(
                                 onClick = { viewModel.addSelectedTracksToGroup(g) },
                                 modifier = Modifier.fillMaxWidth()
                             ) {
-                                Text(g, textAlign = TextAlign.Start, modifier = Modifier.fillMaxWidth())
+                                Text(g, textAlign = TextAlign.Start, modifier = Modifier.fillMaxWidth(), fontWeight = FontWeight.Bold, color = Color(0xFF2C1620))
                             }
                         }
                     }
