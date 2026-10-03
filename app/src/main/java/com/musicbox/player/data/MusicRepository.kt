@@ -16,8 +16,7 @@ import java.io.FileOutputStream
 import java.util.UUID
 
 class MusicRepository(private val context: Context) {
-    // Расширен список форматов, включая Telegram аудио (.opus)
-    private val supportedExtensions = setOf("mp3", "flac", "m4a", "wav", "ogg", "aac", "opus", "wma")
+    private val supportedExtensions = setOf("mp3", "flac", "m4a", "wav", "ogg", "aac", "opus", "wma", "mp4")
     val musicDir: File
         get() = File(context.filesDir, "music").apply { if (!exists()) mkdirs() }
 
@@ -31,34 +30,42 @@ class MusicRepository(private val context: Context) {
         files.mapNotNull { extractTrackMetadata(it) }.sortedBy { it.title.lowercase() }
     }
 
-    suspend fun importFiles(uris: List<Uri>): List<String> = withContext(Dispatchers.IO) {
+    // Потоковое чтение сотен файлов с Google Диска
+    suspend fun importFiles(
+        uris: List<Uri>,
+        onProgress: (Int, Int) -> Unit
+    ): List<String> = withContext(Dispatchers.IO) {
         val newTrackIds = mutableListOf<String>()
         val existingFiles = musicDir.listFiles() ?: emptyArray()
+        val total = uris.size
 
-        for (uri in uris) {
+        for ((index, uri) in uris.withIndex()) {
             try {
                 var fileName = queryFileName(uri) ?: "track_${UUID.randomUUID()}.mp3"
-                val extension = fileName.substringAfterLast(".", "").lowercase()
+                if (!fileName.contains(".")) fileName = "$fileName.mp3"
 
-                if (extension.isBlank() || extension in supportedExtensions) {
-                    if (!fileName.contains(".")) fileName = "$fileName.mp3"
-
-                    val existing = existingFiles.find { it.name.equals(fileName, ignoreCase = true) }
-                    if (existing != null && existing.exists() && existing.length() > 0) {
-                        newTrackIds.add(existing.absolutePath)
-                    } else {
-                        val destFile = File(musicDir, fileName)
-                        context.contentResolver.openInputStream(uri)?.use { input ->
-                            FileOutputStream(destFile).use { output -> input.copyTo(output) }
+                val existing = existingFiles.find { it.name.equals(fileName, ignoreCase = true) }
+                if (existing != null && existing.exists() && existing.length() > 0) {
+                    newTrackIds.add(existing.absolutePath)
+                } else {
+                    val destFile = File(musicDir, fileName)
+                    context.contentResolver.openInputStream(uri)?.use { input ->
+                        FileOutputStream(destFile).use { output ->
+                            val buffer = ByteArray(64 * 1024)
+                            var read: Int
+                            while (input.read(buffer).also { read = it } != -1) {
+                                output.write(buffer, 0, read)
+                            }
                         }
-                        if (destFile.exists() && destFile.length() > 0) {
-                            newTrackIds.add(destFile.absolutePath)
-                        }
+                    }
+                    if (destFile.exists() && destFile.length() > 0) {
+                        newTrackIds.add(destFile.absolutePath)
                     }
                 }
             } catch (e: Exception) {
                 e.printStackTrace()
             }
+            onProgress(index + 1, total)
         }
         newTrackIds
     }
@@ -78,27 +85,19 @@ class MusicRepository(private val context: Context) {
                 val key = keys.next()
                 val array = json.getJSONArray(key)
                 val set = mutableSetOf<String>()
-                for (i in 0 until array.length()) {
-                    set.add(array.getString(i))
-                }
+                for (i in 0 until array.length()) set.add(array.getString(i))
                 result[key] = set
             }
             result
-        } catch (e: Exception) {
-            emptyMap()
-        }
+        } catch (e: Exception) { emptyMap() }
     }
 
     suspend fun saveGroups(groups: Map<String, Set<String>>) = withContext(Dispatchers.IO) {
         try {
             val json = JSONObject()
-            groups.forEach { (name, tracks) ->
-                json.put(name, org.json.JSONArray(tracks))
-            }
+            groups.forEach { (name, tracks) -> json.put(name, org.json.JSONArray(tracks)) }
             groupsFile.writeText(json.toString())
-        } catch (e: Exception) {
-            e.printStackTrace()
-        }
+        } catch (e: Exception) { e.printStackTrace() }
     }
 
     private fun extractTrackMetadata(file: File): Track? {
@@ -123,18 +122,13 @@ class MusicRepository(private val context: Context) {
                 durationMs = durationMs,
                 artworkBytes = safeArtwork
             )
-        } catch (e: Exception) {
-            e.printStackTrace()
-            null
-        } finally {
-            retriever.release()
-        }
+        } catch (e: Exception) { null } finally { retriever.release() }
     }
 
     private fun downscaleArtwork(bytes: ByteArray): ByteArray {
         return try {
             val original = BitmapFactory.decodeByteArray(bytes, 0, bytes.size) ?: return bytes
-            val maxSize = 500
+            val maxSize = 400
             val width = original.width
             val height = original.height
             if (width <= maxSize && height <= maxSize) return bytes
@@ -145,9 +139,7 @@ class MusicRepository(private val context: Context) {
             val stream = ByteArrayOutputStream()
             scaled.compress(Bitmap.CompressFormat.JPEG, 85, stream)
             stream.toByteArray()
-        } catch (e: Exception) {
-            bytes
-        }
+        } catch (e: Exception) { bytes }
     }
 
     private fun queryFileName(uri: Uri): String? {
@@ -157,9 +149,7 @@ class MusicRepository(private val context: Context) {
                 val nameIndex = cursor.getColumnIndex(OpenableColumns.DISPLAY_NAME)
                 if (nameIndex != -1 && cursor.moveToFirst()) name = cursor.getString(nameIndex)
             }
-        } catch (e: Exception) {
-            e.printStackTrace()
-        }
+        } catch (e: Exception) { e.printStackTrace() }
         return name
     }
 }
