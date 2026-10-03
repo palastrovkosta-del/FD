@@ -1,5 +1,6 @@
 package com.musicbox.player.ui.components
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -63,20 +64,16 @@ fun MiniPlayer(
     var dragProgress by remember { mutableFloatStateOf(0f) }
 
     val safeDuration = durationMs.coerceAtLeast(1L)
-    val sliderValue = if (isDraggingSlider) {
-        dragProgress
-    } else {
-        (currentPositionMs.toFloat() / safeDuration).coerceIn(0f, 1f)
-    }
+    val sliderValue = if (isDraggingSlider) dragProgress
+    else (currentPositionMs.toFloat() / safeDuration).coerceIn(0f, 1f)
 
     Surface(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 10.dp, vertical = 6.dp)
-            .clip(RoundedCornerShape(18.dp))
-            .border(2.dp, Color(0xFFFF8DA1), RoundedCornerShape(18.dp)),
-        color = Color(0xFFFFF9FB),
-        tonalElevation = 10.dp
+            .clip(RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp))
+            .border(2.5.dp, Color.Black, RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp)),
+        color = Color(0xFFFF9BB2), // Розовый бар из низа твоего скриншота
+        tonalElevation = 12.dp
     ) {
         Column(modifier = Modifier.padding(horizontal = 14.dp, vertical = 8.dp)) {
             Row(
@@ -89,21 +86,22 @@ fun MiniPlayer(
                     Text(
                         track.title,
                         style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.onSurface,
+                        fontWeight = FontWeight.ExtraBold,
+                        color = Color.White,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis
                     )
                     Text(
                         track.artist,
                         style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        color = Color(0xFF4A1525),
+                        fontWeight = FontWeight.Bold,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis
                     )
                 }
                 Spacer(modifier = Modifier.width(12.dp))
-                TrackImage(bitmap = track.artworkBitmap, size = 44.dp, cornerRadius = 10.dp)
+                TrackImage(bitmap = track.artworkBitmap, trackId = track.id, size = 44.dp, cornerRadius = 10.dp)
             }
 
             Slider(
@@ -117,9 +115,9 @@ fun MiniPlayer(
                     onSeekTo((dragProgress * safeDuration).toLong())
                 },
                 colors = SliderDefaults.colors(
-                    thumbColor = MaterialTheme.colorScheme.primary,
-                    activeTrackColor = MaterialTheme.colorScheme.primary,
-                    inactiveTrackColor = Color(0xFFFFD1DC)
+                    thumbColor = Color.White,
+                    activeTrackColor = Color.White,
+                    inactiveTrackColor = Color(0x66FFFFFF)
                 ),
                 modifier = Modifier
                     .fillMaxWidth()
@@ -134,43 +132,45 @@ fun MiniPlayer(
                 Text(
                     formatDuration(if (isDraggingSlider) (dragProgress * safeDuration).toLong() else currentPositionMs),
                     style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                    color = Color.White,
+                    fontWeight = FontWeight.Bold
                 )
 
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     IconButton(onClick = onCycleRepeat) {
                         val icon = if (repeatMode == Player.REPEAT_MODE_ONE) Icons.Default.RepeatOne else Icons.Default.Repeat
-                        val tint = if (repeatMode != Player.REPEAT_MODE_OFF) MaterialTheme.colorScheme.primary else Color(0xFFC49CAE)
+                        val tint = if (repeatMode != Player.REPEAT_MODE_OFF) Color.White else Color(0x80FFFFFF)
                         Icon(icon, contentDescription = "Repeat", tint = tint, modifier = Modifier.size(24.dp))
                     }
 
                     IconButton(onClick = onToggleShuffle) {
-                        val tint = if (isShuffle) MaterialTheme.colorScheme.primary else Color(0xFFC49CAE)
+                        val tint = if (isShuffle) Color.White else Color(0x80FFFFFF)
                         Icon(Icons.Default.Shuffle, contentDescription = "Shuffle", tint = tint, modifier = Modifier.size(24.dp))
                     }
 
                     IconButton(onClick = onPrevClick) {
-                        Icon(Icons.Default.SkipPrevious, contentDescription = "Prev", tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(28.dp))
+                        Icon(Icons.Default.SkipPrevious, contentDescription = "Prev", tint = Color.White, modifier = Modifier.size(28.dp))
                     }
 
                     IconButton(onClick = onPlayPauseClick) {
                         Icon(
                             if (isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
                             contentDescription = "Play/Pause",
-                            tint = MaterialTheme.colorScheme.primary,
+                            tint = Color.White,
                             modifier = Modifier.size(38.dp)
                         )
                     }
 
                     IconButton(onClick = onNextClick) {
-                        Icon(Icons.Default.SkipNext, contentDescription = "Next", tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(28.dp))
+                        Icon(Icons.Default.SkipNext, contentDescription = "Next", tint = Color.White, modifier = Modifier.size(28.dp))
                     }
                 }
 
                 Text(
                     formatDuration(durationMs),
                     style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                    color = Color.White,
+                    fontWeight = FontWeight.Bold
                 )
             }
         }
