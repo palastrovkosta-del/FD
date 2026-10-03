@@ -52,7 +52,8 @@ data class PlayerUiState(
     val isCreateGroupDialogVisible: Boolean = false,
     val isAddToGroupDialogVisible: Boolean = false,
     val isClassDialogVisible: Boolean = false,
-    val isImporting: Boolean = false // Прогресс импорта 4 ГБ
+    val isImporting: Boolean = false,
+    val importProgressText: String = ""
 )
 
 class MusicViewModel(application: Application) : AndroidViewModel(application) {
@@ -123,14 +124,13 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
         progressJob = viewModelScope.launch {
             while (true) {
                 mediaController?.let { controller ->
-                    _uiState.update {
-                        it.copy(
-                            currentPosition = controller.currentPosition.coerceAtLeast(0L),
-                            duration = controller.duration.coerceAtLeast(0L)
-                        )
+                    val pos = controller.currentPosition.coerceAtLeast(0L)
+                    val dur = controller.duration.coerceAtLeast(0L)
+                    if (_uiState.value.currentPosition != pos || _uiState.value.duration != dur) {
+                        _uiState.update { it.copy(currentPosition = pos, duration = dur) }
                     }
                 }
-                delay(500)
+                delay(1000) // Реже обновляем, чтобы убрать фризы
             }
         }
     }
@@ -211,7 +211,6 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
         viewModelScope.launch { repository.saveGroups(updated) }
     }
 
-    // Перенос текущего играющего трека в группу по кнопке "Class"
     fun moveCurrentTrackToGroup(groupName: String) {
         val track = _uiState.value.currentTrack ?: return
         val updated = _uiState.value.groups.toMutableMap()
@@ -240,12 +239,14 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
         _uiState.update { it.copy(isClassDialogVisible = visible) }
     }
 
-    // Надёжный импорт сотен файлов
+    // Надёжный импорт с отображением прогресса
     fun importFiles(uris: List<Uri>) {
         val targetGroup = _uiState.value.selectedGroup
-        _uiState.update { it.copy(isImporting = true) }
+        _uiState.update { it.copy(isImporting = true, importProgressText = "Подготовка к загрузке...") }
         viewModelScope.launch {
-            val newTrackIds = repository.importFiles(uris)
+            val newTrackIds = repository.importFiles(uris) { current, total ->
+                _uiState.update { it.copy(importProgressText = "Загружено $current из $total песен") }
+            }
             if (targetGroup != null && newTrackIds.isNotEmpty()) {
                 val updated = _uiState.value.groups.toMutableMap()
                 val currentTracks = updated[targetGroup]?.toMutableSet() ?: mutableSetOf()
@@ -255,7 +256,7 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
                 _uiState.update { it.copy(groups = updated) }
             }
             loadTracks()
-            _uiState.update { it.copy(isImporting = false) }
+            _uiState.update { it.copy(isImporting = false, importProgressText = "") }
         }
     }
 
@@ -305,7 +306,7 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
                     )
                     if (resId != 0) {
                         val original = BitmapFactory.decodeResource(getApplication<Application>().resources, resId)
-                        val cropSize = (original.width * 0.78f).toInt()
+                        val cropSize = (original.width * 0.85f).toInt()
                         val startX = (original.width - cropSize) / 2
                         val startY = (original.height - cropSize) / 2
                         val cropped = Bitmap.createBitmap(original, startX, startY, cropSize, cropSize)
@@ -318,9 +319,7 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
                 if (bytes != null) {
                     FileOutputStream(cacheFile).use { it.write(bytes) }
                 }
-            } catch (e: Exception) {
-                e.printStackTrace()
-            }
+            } catch (e: Exception) { e.printStackTrace() }
         }
         return if (cacheFile.exists()) Uri.fromFile(cacheFile) else null
     }
@@ -333,7 +332,7 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
                 )
                 if (resId != 0) {
                     val original = BitmapFactory.decodeResource(getApplication<Application>().resources, resId)
-                    val cropSize = (original.width * 0.78f).toInt()
+                    val cropSize = (original.width * 0.85f).toInt()
                     val startX = (original.width - cropSize) / 2
                     val startY = (original.height - cropSize) / 2
                     val cropped = Bitmap.createBitmap(original, startX, startY, cropSize, cropSize)
@@ -369,9 +368,7 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
         controller.setMediaItems(mediaItems, startIndex, 0L)
         controller.prepare()
         controller.play()
-        _uiState.update {
-            it.copy(queue = tracksQueue, currentTrack = track)
-        }
+        _uiState.update { it.copy(queue = tracksQueue, currentTrack = track) }
     }
 
     fun togglePlayPause() {
