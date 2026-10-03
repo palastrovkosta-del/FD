@@ -46,15 +46,16 @@ fun TrackItem(
     onClick: () -> Unit,
     onDeleteClick: () -> Unit
 ) {
-    val borderColor = if (isCurrentPlaying) MaterialTheme.colorScheme.primary else Color(0xFFFFD1DC)
-    val bgColor = if (isSelected) Color(0xFFFFE0EB) else Color.White
+    val borderColor = if (isCurrentPlaying) Color(0xFFFF5B84) else Color.Black
+    val borderWidth = if (isCurrentPlaying) 2.5.dp else 1.5.dp
+    val bgColor = if (isSelected) Color(0xFFFFD9E4) else Color(0xFFFFF7F9)
 
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 12.dp, vertical = 4.dp)
+            .padding(horizontal = 14.dp, vertical = 5.dp)
             .clip(RoundedCornerShape(16.dp))
-            .border(1.5.dp, borderColor, RoundedCornerShape(16.dp))
+            .border(borderWidth, borderColor, RoundedCornerShape(16.dp))
             .background(bgColor)
             .combinedClickable(
                 onClick = { if (isSelectionMode) onSelectToggle() else onClick() },
@@ -67,17 +68,20 @@ fun TrackItem(
             Checkbox(
                 checked = isSelected,
                 onCheckedChange = { onSelectToggle() },
-                colors = CheckboxDefaults.colors(checkedColor = MaterialTheme.colorScheme.primary),
+                colors = CheckboxDefaults.colors(checkedColor = Color(0xFFFF5B84)),
                 modifier = Modifier.padding(end = 8.dp)
             )
         }
 
         FilledIconButton(
             onClick = { if (isSelectionMode) onSelectToggle() else onClick() },
-            modifier = Modifier.size(44.dp),
+            modifier = Modifier
+                .size(44.dp)
+                .border(2.dp, Color.Black, RoundedCornerShape(14.dp)),
+            shape = RoundedCornerShape(14.dp),
             colors = IconButtonDefaults.filledIconButtonColors(
-                containerColor = if (isCurrentPlaying) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceVariant,
-                contentColor = if (isCurrentPlaying) Color.White else MaterialTheme.colorScheme.primary
+                containerColor = if (isCurrentPlaying) Color(0xFFFF5B84) else Color(0xFFFFB6C1),
+                contentColor = Color.White
             )
         ) {
             Icon(
@@ -93,15 +97,15 @@ fun TrackItem(
             Text(
                 track.title,
                 style = MaterialTheme.typography.titleMedium,
-                fontWeight = if (isCurrentPlaying) FontWeight.Bold else FontWeight.SemiBold,
-                color = if (isCurrentPlaying) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
+                fontWeight = if (isCurrentPlaying) FontWeight.ExtraBold else FontWeight.Bold,
+                color = if (isCurrentPlaying) Color(0xFFFF3366) else Color(0xFF2C1620),
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis
             )
             Text(
                 "${track.artist} • ${formatDuration(track.durationMs)}",
                 style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                color = Color(0xFF8C5368),
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis
             )
@@ -109,14 +113,19 @@ fun TrackItem(
 
         Spacer(modifier = Modifier.width(8.dp))
 
-        TrackImage(bitmap = track.artworkBitmap, size = 44.dp, cornerRadius = 10.dp)
+        TrackImage(
+            bitmap = track.artworkBitmap,
+            trackId = track.id,
+            size = 44.dp,
+            cornerRadius = 10.dp
+        )
 
         if (!isSelectionMode) {
             IconButton(onClick = onDeleteClick) {
                 Icon(
                     Icons.Default.Delete,
                     contentDescription = "Delete",
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
+                    tint = Color(0xFF9E6578)
                 )
             }
         }
